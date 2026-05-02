@@ -1,0 +1,3 @@
+contao_pdf_import_backend:
+    resource: '../src/Controller/Backend/'
+    type: attribute

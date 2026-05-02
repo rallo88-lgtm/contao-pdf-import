@@ -1,0 +1,9 @@
+vendor/
+.DS_Store
+Thumbs.db
+*.log
+
+# Local env (contains secrets, never commit)
+.env.local
+.env.local.php
+.env.*.local

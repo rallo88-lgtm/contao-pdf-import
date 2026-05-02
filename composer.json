@@ -1,0 +1,29 @@
+{
+    "name": "rallo88-lgtm/contao-pdf-import",
+    "description": "Contao bundle that imports structured content from PDF documents into news archives. Part of the RCT Toolbox.",
+    "type": "contao-bundle",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Ralph Engels",
+            "email": "rallo88@googlemail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "contao/core-bundle": "^5.7"
+    },
+    "autoload": {
+        "psr-4": {
+            "Rallo\\ContaoPdfImport\\": "src/"
+        }
+    },
+    "extra": {
+        "contao-manager-plugin": "Rallo\\ContaoPdfImport\\ContaoManager\\Plugin"
+    },
+    "config": {
+        "allow-plugins": {
+            "contao/manager-plugin": true
+        }
+    }
+}
