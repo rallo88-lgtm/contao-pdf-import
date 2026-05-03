@@ -45,7 +45,10 @@ class PdfImportBackendStylesheetListener
             return;
         }
 
-        $link = '<link rel="stylesheet" href="' . self::CSS_PATH . '">';
+        // data-turbo-track="reload" damit Turbo bei Hash-Drift einen Full-Reload
+        // statt nur Frame-Swap macht — sonst verliert das BE unser CSS nach
+        // ein paar Page-Wechseln.
+        $link = '<link rel="stylesheet" href="' . self::CSS_PATH . '" data-turbo-track="reload">';
         $response->setContent(str_replace('</head>', $link . '</head>', $html));
     }
 }
