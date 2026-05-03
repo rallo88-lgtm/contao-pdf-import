@@ -1,0 +1,164 @@
+/* DOS-Box — RCT Toolbox shared component (Vanilla, no build step).
+ * Eingehievt aus prototypes/dos-box.html. Nur Box-spezifisches CSS hier;
+ * keine body/h1-Globals (zerschiessen sonst Contao-BE-Layout). */
+
+.dos-box-host {
+  --crt-bg:     #0a0e0c;
+  --crt-fg:     #b9f6ca;
+  --crt-dim:    #4d7c5a;
+  --crt-border: #2c4a3a;
+  --crt-ok:     #b9f6ca;
+  --crt-warn:   #ffd54f;
+  --crt-error:  #ff5252;
+  --crt-info:   #4dd0e1;
+  --crt-prompt: #fff176;
+  --crt-cursor: #b9f6ca;
+
+  font-family: "DM Mono", "Cascadia Mono", "Consolas", "Menlo", "Liberation Mono", monospace;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--crt-fg);
+}
+
+.dos-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+}
+
+.dos-controls button {
+  background: var(--crt-bg);
+  border: 1px solid var(--crt-border);
+  color: var(--crt-fg);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px 14px;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: background .12s, border-color .12s;
+}
+.dos-controls button:hover  { background: #16201b; border-color: var(--crt-dim); }
+.dos-controls button:active { background: #20302a; }
+.dos-controls button:disabled { opacity: .4; cursor: not-allowed; }
+
+.dos-box {
+  width: min(880px, 100%);
+  background: var(--crt-bg);
+  border: 1px solid var(--crt-border);
+  padding: 16px 20px;
+  position: relative;
+  box-shadow:
+    0 0 0 1px #000,
+    0 0 18px rgba(60,140,90,0.15),
+    inset 0 0 60px rgba(0,40,20,0.4);
+  border-radius: 2px;
+}
+
+/* Subtile Scanlines fuer CRT-Vibe */
+.dos-box::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    rgba(0,0,0,0.16) 2px,
+    rgba(0,0,0,0.16) 3px
+  );
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.dos-header {
+  white-space: pre;
+  color: var(--crt-dim);
+  margin: 0 0 12px;
+  font-size: 13px;
+  position: relative;
+}
+.dos-header .title { color: var(--crt-fg); }
+.dos-header .subtitle {
+  color: var(--crt-dim);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  margin-left: 4px;
+}
+
+.dos-output {
+  position: relative;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 60vh;
+  min-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-color: var(--crt-border) transparent;
+  scrollbar-width: thin;
+}
+.dos-output::-webkit-scrollbar { width: 8px; }
+.dos-output::-webkit-scrollbar-thumb { background: var(--crt-border); border-radius: 4px; }
+.dos-output::-webkit-scrollbar-track { background: transparent; }
+
+.dos-line {
+  position: relative;
+  padding: 1px 0;
+  white-space: pre-wrap;
+}
+.dos-line.ok    { color: var(--crt-ok); }
+.dos-line.warn  { color: var(--crt-warn); }
+.dos-line.error { color: var(--crt-error); }
+.dos-line.info  { color: var(--crt-info); }
+.dos-line.dim   { color: var(--crt-dim); }
+.dos-line.prompt{ color: var(--crt-prompt); }
+.dos-line.input { color: var(--crt-fg); }
+
+.dos-line.input::before {
+  content: "> ";
+  color: var(--crt-dim);
+}
+
+.dos-glyph {
+  display: inline-block;
+  width: 1.2em;
+  text-align: center;
+  margin-right: 2px;
+}
+
+.dos-cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1em;
+  background: var(--crt-cursor);
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: dos-blink 1.06s steps(2, jump-none) infinite;
+}
+.dos-cursor.is-done { display: none; }
+
+@keyframes dos-blink {
+  0%, 50%        { opacity: 1; }
+  50.01%, 100%   { opacity: 0; }
+}
+
+.dos-input-area {
+  display: none;
+  margin-top: 6px;
+  align-items: center;
+  gap: 6px;
+}
+.dos-input-area.is-active { display: flex; }
+.dos-input-area .dos-input-prompt { color: var(--crt-prompt); }
+.dos-input-area input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed var(--crt-border);
+  color: var(--crt-fg);
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+  padding: 2px 4px;
+}
+.dos-input-area input:focus { border-bottom-color: var(--crt-fg); }

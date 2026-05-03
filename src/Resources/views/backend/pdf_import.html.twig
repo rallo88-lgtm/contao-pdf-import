@@ -1,0 +1,35 @@
+{% extends '@Contao_ContaoCoreBundle/be_main.html.twig' %}
+{% from "@ContaoPdfImport/components/_dos_box.html.twig" import dos_box %}
+
+{% block headline %}PDF-Import{% endblock %}
+{% block title %}PDF-Import – RCT Toolbox{% endblock %}
+
+{% block main %}
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/dos-box.css">
+
+    <div id="tl_buttons">
+        <a href="{{ path('contao_backend') }}" class="header_back" title="Zurück">Zurück</a>
+    </div>
+
+    <h2 class="sub_headline">PDF-Import — DOS-Box Demo (Mock-Mode)</h2>
+
+    <div class="tl_message">
+        <p class="tl_info">
+            Phase 3 des Bauplans — DOS-Box-Component aus Standalone-Prototype ins Bundle hieved.
+            Demo-Run unten zeigt die kompletten 5 Phasen mit Mock-Daten ohne echten AWS-Call.
+        </p>
+    </div>
+
+    <div class="dos-box-host">
+        <div class="dos-controls">
+            <button type="button" data-dos-action="run">▶ Demo-Run starten</button>
+            <button type="button" data-dos-action="clear">Löschen</button>
+            <button type="button" data-dos-action="fail">Fail-Pfad simulieren</button>
+        </div>
+    </div>
+
+    {{ dos_box('RCT TOOLBOX · PDF-IMPORT', 'v0.1 · MOCK MODE') }}
+
+    <script src="/bundles/contaopdfimport/js/dos-box.js"></script>
+    <script src="/bundles/contaopdfimport/js/pdf-import-demo.js"></script>
+{% endblock %}
