@@ -1,9 +1,11 @@
 /* RCT TOOLBOX — BE-Navigation-Icon (nur Top-Level-Section).
-   Sub-Items bleiben absichtlich ohne Icon — sonst wird's zu bunt. */
+   Sub-Items bleiben absichtlich ohne Icon — sonst wird's zu bunt.
+   Dark-Mode-Selector: html[data-color-scheme=dark] — Contao 5.7 setzt das
+   Attribut explizit auf <html>, der korrekte Selector ist mit html-prefix. */
 
 #tl_navigation .group-rct_toolbox {
   background: url(/system/themes/flexible/icons/wrench.svg) 3px 2px no-repeat;
 }
-[data-color-scheme=dark] #tl_navigation .group-rct_toolbox {
+html[data-color-scheme=dark] #tl_navigation .group-rct_toolbox {
   background-image: url(/system/themes/flexible/icons/wrench--dark.svg);
 }

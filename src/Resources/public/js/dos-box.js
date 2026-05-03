@@ -44,24 +44,31 @@
         gEl.textContent = g;
         el.appendChild(gEl);
       }
-      el.appendChild(document.createTextNode(msg));
-      this.output.insertBefore(el, this.cursor);
+      el.appendChild(document.createTextNode(msg + " "));
+      // Cursor wandert ans Ende der zuletzt-eingefuegten line — er sitzt
+      // damit immer rechts neben dem letzten Text-Glyph (DOS-Vibe).
+      el.appendChild(this.cursor);
+      this.output.appendChild(el);
       this._scroll();
     }
 
     lineRaw(html) {
       const el = document.createElement("div");
       el.className = "dos-line";
-      el.innerHTML = html;
-      this.output.insertBefore(el, this.cursor);
+      el.innerHTML = html + " ";
+      el.appendChild(this.cursor);
+      this.output.appendChild(el);
       this._scroll();
     }
 
     clear() {
-      [...this.output.children].forEach(c => {
-        if (c !== this.cursor) c.remove();
-      });
-      this.cursor.classList.remove("is-done");
+      // Cursor zwischenparken, alles andere weg, dann fresh "Cleared." line
+      // mit Cursor inline — gleiches Pattern wie Initial-Markup.
+      const cursor = this.cursor;
+      this.output.innerHTML = "";
+      this.output.appendChild(cursor);
+      cursor.classList.remove("is-done");
+      this.line("dim", "Cleared.");
     }
 
     done()  { this.cursor.classList.add("is-done"); }
