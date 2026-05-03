@@ -4,8 +4,9 @@ services:
         autoconfigure: true
 
     Rallo\ContaoPdfImport\:
-        resource: '../src/*'
+        resource: '../src/'
         exclude:
             - '../src/DependencyInjection/'
             - '../src/Resources/'
+            - '../src/ContaoManager/'
             - '../src/ContaoPdfImportBundle.php'
