@@ -18,6 +18,15 @@
   font-size: 14px;
   line-height: 1.45;
   color: var(--crt-fg);
+
+  /* Explizite Layout-Resets gegen Contao-BE-Defaults
+     (Listings/Tables haben oft float-Layouts die durchschlagen). */
+  display: block;
+  clear: both;
+  float: none;
+  margin: 0 0 16px;
+  width: 100%;
+  max-width: 880px;
 }
 
 .dos-controls {
@@ -25,6 +34,7 @@
   gap: 8px;
   flex-wrap: wrap;
   margin: 0 0 16px;
+  clear: both;
 }
 
 .dos-controls button {
@@ -43,7 +53,8 @@
 .dos-controls button:disabled { opacity: .4; cursor: not-allowed; }
 
 .dos-box {
-  width: min(880px, 100%);
+  display: block;
+  width: 100%;
   background: var(--crt-bg);
   border: 1px solid var(--crt-border);
   padding: 16px 20px;
@@ -87,6 +98,7 @@
 }
 
 .dos-output {
+  display: block;
   position: relative;
   white-space: pre-wrap;
   word-break: break-word;

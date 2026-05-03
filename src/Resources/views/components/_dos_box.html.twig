@@ -13,19 +13,17 @@
    moeglich indem man jeder eine eindeutige id mitgibt. #}
 
 {% macro dos_box(header_html, id = 'dos-box-1') %}
-    <div class="dos-box-host" data-dos=root id="{{ id }}">
-        <div class="dos-box">
-            {{ header_html|raw }}
+    <div class="dos-box" data-dos=root id="{{ id }}">
+        {{ header_html|raw }}
 
-            <div class="dos-output" data-dos=output>
-                <div class="dos-line dim">→ DOS-Box ready.</div>
-                <span class="dos-cursor" data-dos=cursor>&nbsp;</span>
-            </div>
+        <div class="dos-output" data-dos=output>
+            <div class="dos-line dim">→ DOS-Box ready.</div>
+            <span class="dos-cursor" data-dos=cursor>&nbsp;</span>
+        </div>
 
-            <div class="dos-input-area" data-dos=input-area>
-                <span class="dos-input-prompt" data-dos=input-prompt></span>
-                <input type="text" data-dos=input-field autocomplete="off" spellcheck="false">
-            </div>
+        <div class="dos-input-area" data-dos=input-area>
+            <span class="dos-input-prompt" data-dos=input-prompt></span>
+            <input type="text" data-dos=input-field autocomplete="off" spellcheck="false">
         </div>
     </div>
 {% endmacro %}
