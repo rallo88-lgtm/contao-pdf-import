@@ -25,9 +25,11 @@
   clear: both;
   float: none;
   margin: 0 0 16px;
-  /* Box-Breite an Header gekoppelt: 66 chars Header + 40px Box-Padding
-     + 2px Border = exakt so breit wie der breiteste Inhalt. */
-  width: max-content;
+  /* width: auto — Wrapper hat keine eigene Width-Constraint, die
+     einzelnen Children (.dos-controls + .dos-box) bestimmen ihre Breite
+     selber. Ohne das wuerde max-content vom Wrapper Buttons + Box
+     uebersummieren. */
+  width: auto;
   max-width: 100%;
 }
 
@@ -56,7 +58,11 @@
 
 .dos-box {
   display: block;
-  width: 100%;
+  /* Box ist exakt so breit wie ihr breitester Content (= Header-Pre,
+     66 monospace chars + Padding). max-width 100% schuetzt vor Overflow
+     bei sehr schmaler Viewport. */
+  width: max-content;
+  max-width: 100%;
   background: var(--crt-bg);
   border: 1px solid var(--crt-border);
   padding: 16px 20px;

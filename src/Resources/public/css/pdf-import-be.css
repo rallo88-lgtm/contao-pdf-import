@@ -1,16 +1,27 @@
 /* RCT TOOLBOX — BE-Navigation-Icon (nur Top-Level-Section).
    Sub-Items bleiben absichtlich ohne Icon — sonst wird's zu bunt.
 
-   Defensiv: zwei Selektoren parallel — exakte .group-rct_toolbox UND
-   substring-match a[class*="rct_toolbox"] (falls Knp-Menu noch andere
-   Klassen drauflegt). Plus !important damit Standard-CSS-Regeln nicht
-   uns stehlen. Dark-Mode-Selector: html[data-color-scheme=dark]. */
+   WICHTIG: background-image / -position / -repeat als getrennte Properties
+   (NICHT shorthand). Standard-Contao setzt bei aktiver Section
+   `li.current > a { background-color: var(--nav-current) }` — das wuerde
+   eine background-shorthand-Regel komplett ueberschreiben (Color resettet
+   alle background-Properties wenn shorthand). Mit getrennten Properties
+   bleibt das background-image stabil ueber alle States.
+
+   Plus extra-Selektor fuer current-State + substring-match als Defensive,
+   falls Knp-Menu zusaetzliche Klassen drauflegt. */
 
 #tl_navigation .group-rct_toolbox,
+#tl_navigation a.group-rct_toolbox,
+#tl_navigation li.current > a.group-rct_toolbox,
 #tl_navigation a[class*="rct_toolbox"] {
-  background: url(/system/themes/flexible/icons/wrench.svg) 3px 2px no-repeat !important;
+  background-image: url(/system/themes/flexible/icons/wrench.svg) !important;
+  background-position: 3px 2px !important;
+  background-repeat: no-repeat !important;
 }
 html[data-color-scheme=dark] #tl_navigation .group-rct_toolbox,
+html[data-color-scheme=dark] #tl_navigation a.group-rct_toolbox,
+html[data-color-scheme=dark] #tl_navigation li.current > a.group-rct_toolbox,
 html[data-color-scheme=dark] #tl_navigation a[class*="rct_toolbox"] {
   background-image: url(/system/themes/flexible/icons/wrench--dark.svg) !important;
 }
