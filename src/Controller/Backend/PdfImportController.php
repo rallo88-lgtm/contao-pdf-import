@@ -11,6 +11,8 @@ class PdfImportController extends AbstractBackendController
 {
     public function __invoke(): Response
     {
-        return $this->render('@ContaoPdfImport/backend/pdf_import.html.twig');
+        return $this->render('@ContaoPdfImport/backend/pdf_import.html.twig', [
+            'headline' => 'PDF-Import',
+        ]);
     }
 }

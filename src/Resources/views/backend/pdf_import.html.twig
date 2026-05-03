@@ -1,10 +1,9 @@
 {% extends '@Contao_ContaoCoreBundle/be_main.html.twig' %}
 {% from "@ContaoPdfImport/components/_dos_box.html.twig" import dos_box %}
 
-{% block headline %}PDF-Import{% endblock %}
 {% block title %}PDF-Import – RCT Toolbox{% endblock %}
 
-{% block main %}
+{% block main_content %}
     <link rel="stylesheet" href="/bundles/contaopdfimport/css/dos-box.css">
 
     <div id="tl_buttons">
@@ -33,7 +32,6 @@
 
         {{ dos_box(header) }}
     </div>
-
 
     <script src="/bundles/contaopdfimport/js/dos-box.js"></script>
     <script src="/bundles/contaopdfimport/js/pdf-import-demo.js"></script>
