@@ -28,7 +28,11 @@
         </div>
     </div>
 
-    {{ dos_box('RCT TOOLBOX · PDF-IMPORT', 'v0.1 · MOCK MODE') }}
+    {% set header %}<pre class="dos-header">╔══════════════════════════════════════════════════════════════════╗
+║  <span class="title">RCT TOOLBOX · PDF-IMPORT</span>             <span class="subtitle">v0.1 · MOCK MODE</span>             ║
+╚══════════════════════════════════════════════════════════════════╝</pre>{% endset %}
+
+    {{ dos_box(header) }}
 
     <script src="/bundles/contaopdfimport/js/dos-box.js"></script>
     <script src="/bundles/contaopdfimport/js/pdf-import-demo.js"></script>

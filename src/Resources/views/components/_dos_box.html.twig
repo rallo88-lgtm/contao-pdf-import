@@ -1,20 +1,21 @@
 {# DOS-Box-Container-Markup als Macro.
+   ASCII-Header bleibt Page-spezifisch — uebergeben als header_html-Parameter
+   (mit |raw gerendert weil ASCII-Linien + Inline-Spans drin sind).
+
    Nutzung in BE-Pages:
        {% from "@ContaoPdfImport/components/_dos_box.html.twig" import dos_box %}
-       {{ dos_box('TITEL · DER · BOX', 'v0.1 · MOCK MODE') }}
-   Innerer JS findet die Box per [data-dos=root] — die ID kann pro Page
-   variieren wenn mehrere Boxen koexistieren sollen (id-Param). #}
+       {% set header %}<pre class="dos-header">╔════╗
+║ <span class="title">TITEL</span>             ║
+╚════╝</pre>{% endset %}
+       {{ dos_box(header) }}
 
-{% macro dos_box(title, subtitle = '', id = 'dos-box-1', headerWidth = 66) %}
-    {%- set border = '═' | repeat(headerWidth) -%}
-    {%- set inner_width = headerWidth - 2 -%}
-    {%- set title_line = ('  ' ~ title) -%}
-    {%- set sub_line = (subtitle is empty) ? '' : (subtitle ~ '  ') -%}
+   Innere JS findet die Box per [data-dos=root]; mehrere Boxen pro Page sind
+   moeglich indem man jeder eine eindeutige id mitgibt. #}
+
+{% macro dos_box(header_html, id = 'dos-box-1') %}
     <div class="dos-box-host" data-dos=root id="{{ id }}">
         <div class="dos-box">
-            <pre class="dos-header">╔{{ border }}╗
-║<span class="title">{{ title_line }}</span>{% if subtitle is not empty %} <span class="subtitle">{{ subtitle }}</span>{% endif %}{{ ' '|repeat(max(0, inner_width - title_line|length - (subtitle is empty ? 0 : (subtitle|length + 1)))) }}║
-╚{{ border }}╝</pre>
+            {{ header_html|raw }}
 
             <div class="dos-output" data-dos=output>
                 <div class="dos-line dim">→ DOS-Box ready.</div>
