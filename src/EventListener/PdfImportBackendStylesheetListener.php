@@ -45,10 +45,16 @@ class PdfImportBackendStylesheetListener
             return;
         }
 
-        // data-turbo-track="reload" damit Turbo bei Hash-Drift einen Full-Reload
-        // statt nur Frame-Swap macht — sonst verliert das BE unser CSS nach
-        // ein paar Page-Wechseln.
-        $link = '<link rel="stylesheet" href="' . self::CSS_PATH . '" data-turbo-track="reload">';
+        // Cache-Buster ueber Bundle-CSS-mtime — bei jedem Asset-Update
+        // bekommt der Browser garantiert die neue Version. data-turbo-track
+        // damit Turbo bei Hash-Drift einen Full-Reload macht.
+        $cssFile = \dirname(__DIR__) . '/Resources/public/css/pdf-import-be.css';
+        $version = is_file($cssFile) ? @filemtime($cssFile) : time();
+        $link = sprintf(
+            '<link rel="stylesheet" href="%s?v=%d" data-turbo-track="reload">',
+            self::CSS_PATH,
+            $version
+        );
         $response->setContent(str_replace('</head>', $link . '</head>', $html));
     }
 }

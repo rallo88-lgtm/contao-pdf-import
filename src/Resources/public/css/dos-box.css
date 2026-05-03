@@ -25,10 +25,10 @@
   clear: both;
   float: none;
   margin: 0 0 16px;
-  width: 100%;
-  /* max-width an die ASCII-Header-Breite gekoppelt (66 chars + horizontal
-     padding), damit die ═-Lines exakt zwischen den Box-Borders sitzen. */
-  max-width: 70ch;
+  /* Box-Breite an Header gekoppelt: 66 chars Header + 40px Box-Padding
+     + 2px Border = exakt so breit wie der breiteste Inhalt. */
+  width: max-content;
+  max-width: 100%;
 }
 
 .dos-controls {
