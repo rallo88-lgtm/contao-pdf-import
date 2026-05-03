@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>DOS-Box Prototype — RCT Toolbox / contao-pdf-import</title>
+<style>
+:root {
+  --crt-bg: #0a0e0c;
+  --crt-fg: #b9f6ca;
+  --crt-dim: #4d7c5a;
+  --crt-border: #2c4a3a;
+  --crt-ok: #b9f6ca;
+  --crt-warn: #ffd54f;
+  --crt-error: #ff5252;
+  --crt-info: #4dd0e1;
+  --crt-prompt: #fff176;
+  --crt-cursor: #b9f6ca;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+  color: var(--crt-fg);
+  font-family: "DM Mono", "Cascadia Mono", "Consolas", "Menlo", "Liberation Mono", monospace;
+  font-size: 14px;
+  line-height: 1.45;
+  min-height: 100vh;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px 40px;
+  gap: 16px;
+}
+
+h1 {
+  font-size: 14px;
+  font-weight: normal;
+  letter-spacing: 0.1em;
+  color: var(--crt-dim);
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.controls button {
+  background: var(--crt-bg);
+  border: 1px solid var(--crt-border);
+  color: var(--crt-fg);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px 14px;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: background .12s, border-color .12s;
+}
+.controls button:hover { background: #16201b; border-color: var(--crt-dim); }
+.controls button:active { background: #20302a; }
+.controls button:disabled { opacity: .4; cursor: not-allowed; }
+
+#dos-box {
+  width: min(880px, 100%);
+  background: var(--crt-bg);
+  border: 1px solid var(--crt-border);
+  padding: 16px 20px;
+  position: relative;
+  box-shadow:
+    0 0 0 1px #000,
+    0 0 18px rgba(60,140,90,0.15),
+    inset 0 0 60px rgba(0,40,20,0.4);
+  border-radius: 2px;
+}
+
+/* Subtile Scanlines für CRT-Vibe */
+#dos-box::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    rgba(0,0,0,0.16) 2px,
+    rgba(0,0,0,0.16) 3px
+  );
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.dos-header {
+  white-space: pre;
+  color: var(--crt-dim);
+  margin: 0 0 12px;
+  font-size: 13px;
+  position: relative;
+}
+.dos-header .title { color: var(--crt-fg); }
+.dos-header .subtitle {
+  color: var(--crt-dim);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  margin-left: 4px;
+}
+
+#dos-output {
+  position: relative;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 60vh;
+  min-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-color: var(--crt-border) transparent;
+  scrollbar-width: thin;
+}
+#dos-output::-webkit-scrollbar { width: 8px; }
+#dos-output::-webkit-scrollbar-thumb {
+  background: var(--crt-border);
+  border-radius: 4px;
+}
+#dos-output::-webkit-scrollbar-track { background: transparent; }
+
+.line {
+  position: relative;
+  padding: 1px 0;
+  white-space: pre-wrap;
+}
+.line.ok    { color: var(--crt-ok); }
+.line.warn  { color: var(--crt-warn); }
+.line.error { color: var(--crt-error); }
+.line.info  { color: var(--crt-info); }
+.line.dim   { color: var(--crt-dim); }
+.line.prompt { color: var(--crt-prompt); }
+.line.input { color: var(--crt-fg); }
+
+.line.input::before {
+  content: "> ";
+  color: var(--crt-dim);
+}
+
+.glyph {
+  display: inline-block;
+  width: 1.2em;
+  text-align: center;
+  margin-right: 2px;
+}
+
+#dos-cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1em;
+  background: var(--crt-cursor);
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: blink 1.06s steps(2, jump-none) infinite;
+}
+#dos-cursor.done { display: none; }
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+.input-area {
+  display: none;
+  margin-top: 6px;
+  align-items: center;
+  gap: 6px;
+}
+.input-area.is-active { display: flex; }
+.input-area .input-prompt {
+  color: var(--crt-prompt);
+}
+.input-area input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed var(--crt-border);
+  color: var(--crt-fg);
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+  padding: 2px 4px;
+}
+.input-area input:focus { border-bottom-color: var(--crt-fg); }
+
+footer {
+  font-size: 11px;
+  color: var(--crt-dim);
+  letter-spacing: 0.06em;
+  text-align: center;
+  margin-top: 8px;
+}
+footer code { color: var(--crt-info); }
+</style>
+</head>
+<body>
+
+<h1>DOS-Box Prototype · RCT Toolbox</h1>
+
+<div class="controls">
+  <button id="btn-run">▶ Demo-Run starten</button>
+  <button id="btn-clear">Löschen</button>
+  <button id="btn-mock-fail">Fail-Pfad simulieren</button>
+</div>
+
+<div id="dos-box">
+  <pre class="dos-header">╔══════════════════════════════════════════════════════════════════╗
+║  <span class="title">RCT TOOLBOX · PDF-IMPORT</span>             <span class="subtitle">v0.1 · MOCK MODE</span>             ║
+╚══════════════════════════════════════════════════════════════════╝</pre>
+
+  <div id="dos-output">
+    <div class="line dim">→ DOS-Box ready. Click "Demo-Run starten" to begin.</div>
+    <span id="dos-cursor">&nbsp;</span>
+  </div>
+
+  <div class="input-area" id="input-area">
+    <span class="input-prompt" id="input-prompt-text"></span>
+    <input type="text" id="input-field" autocomplete="off" spellcheck="false">
+  </div>
+</div>
+
+<footer>
+  Vanilla HTML/JS prototype. Kein Build-Step, kein Backend.
+  Phase-3-Integration: <code>src/Resources/public/js/dos-box.js</code> + Twig-Macro.
+</footer>
+
+<script>
+/* ============================================================
+ * DosBox — Vanilla-JS-Library für SSE-getriebene BE-Operationen
+ * ------------------------------------------------------------
+ * Public API:
+ *   const box = new DosBox({ output, cursor, inputArea, promptText, inputField });
+ *   box.line(type, msg)       — type: ok|warn|error|info|dim|prompt
+ *   box.lineRaw(html)         — pre-styled HTML einfügen
+ *   box.clear()
+ *   box.done()                — versteckt Cursor (Operation fertig)
+ *   await box.prompt(text, validator?)  — wartet auf User-Input, returns string
+ *   box.parseRange(str)       — "2,4-7,11" → [2,4,5,6,7,11]
+ * ============================================================ */
+class DosBox {
+  constructor({ output, cursor, inputArea, promptText, inputField }) {
+    this.output      = output;
+    this.cursor      = cursor;
+    this.inputArea   = inputArea;
+    this.promptText  = promptText;
+    this.inputField  = inputField;
+  }
+
+  line(type, msg, glyph) {
+    const el = document.createElement("div");
+    el.className = `line ${type}`;
+    if (glyph || DosBox.GLYPHS[type]) {
+      const g = document.createElement("span");
+      g.className = "glyph";
+      g.textContent = glyph ?? DosBox.GLYPHS[type];
+      el.appendChild(g);
+    }
+    el.appendChild(document.createTextNode(msg));
+    this.output.insertBefore(el, this.cursor);
+    this._scroll();
+  }
+
+  lineRaw(html) {
+    const el = document.createElement("div");
+    el.className = "line";
+    el.innerHTML = html;
+    this.output.insertBefore(el, this.cursor);
+    this._scroll();
+  }
+
+  clear() {
+    [...this.output.children].forEach(c => {
+      if (c !== this.cursor) c.remove();
+    });
+    this.cursor.classList.remove("done");
+  }
+
+  done() {
+    this.cursor.classList.add("done");
+  }
+
+  reset() {
+    this.cursor.classList.remove("done");
+  }
+
+  _scroll() {
+    this.output.scrollTop = this.output.scrollHeight;
+  }
+
+  prompt(text, validator) {
+    return new Promise((resolve) => {
+      this.line("prompt", text);
+      this.cursor.classList.add("done");
+      this.promptText.textContent = text.replace(/^\?\s*/, "") + " ";
+      this.inputArea.classList.add("is-active");
+      this.inputField.value = "";
+      this.inputField.focus();
+
+      const handler = (ev) => {
+        if (ev.key !== "Enter") return;
+        const val = this.inputField.value.trim();
+        if (validator) {
+          const err = validator(val);
+          if (err) {
+            this.line("warn", err);
+            return;
+          }
+        }
+        this.inputField.removeEventListener("keydown", handler);
+        this.inputArea.classList.remove("is-active");
+        this.line("input", val || "(leer)");
+        this.cursor.classList.remove("done");
+        resolve(val);
+      };
+      this.inputField.addEventListener("keydown", handler);
+    });
+  }
+
+  parseRange(str) {
+    const out = new Set();
+    for (const part of str.split(/\s*,\s*/).filter(Boolean)) {
+      const m = part.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
+      if (!m) continue;
+      const a = +m[1], b = m[2] ? +m[2] : a;
+      const [lo, hi] = a <= b ? [a, b] : [b, a];
+      for (let i = lo; i <= hi; i++) out.add(i);
+    }
+    return [...out].sort((x, y) => x - y);
+  }
+
+  static GLYPHS = {
+    ok:     "✓",
+    warn:   "⚠",
+    error:  "✗",
+    info:   "→",
+    dim:    "·",
+    prompt: "?",
+  };
+}
+
+/* ============================================================
+ * Mock-Stream-Helpers
+ * ============================================================ */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function maskKey(key) {
+  return key.slice(0, 4) + "****" + key.slice(-4);
+}
+
+/* ============================================================
+ * Mock-Phasen (analog project_dos_box_pattern.md A–E)
+ * ============================================================ */
+async function phaseA_LocalSplit(box) {
+  box.line("info", "Phase A · Local Split — Imagick + Smalot");
+  await sleep(280);
+  box.line("dim", "Reading /files/upload/MBJ-234.pdf (4.2 MB)…");
+  await sleep(420);
+  for (let p = 1; p <= 24; p++) {
+    box.line("ok", `Page ${String(p).padStart(2, "0")} rasterized at 200 dpi`);
+    await sleep(40 + Math.random() * 80);
+  }
+  await sleep(300);
+  box.line("info", "Smalot · Page-1-Text: \"Morbus Bechterew Journal · Nr. 234 · Q1/2026\"");
+  await sleep(420);
+  box.line("ok", "Issue MBJ-234 detected. 24 pages ready.");
+  await sleep(300);
+}
+
+async function phaseB_PageSelection(box) {
+  box.line("info", "Phase B · Page-Auswahl");
+  await sleep(140);
+  while (true) {
+    const raw = await box.prompt(
+      "Welche Seiten scannen? [A]lle / [L]iste (z.B. 2,4-7,12):",
+      (val) => {
+        if (!val) return "Leere Eingabe — bitte etwas wählen.";
+        if (/^a$/i.test(val)) return null;
+        if (/^[\d,\s\-]+$/.test(val)) return null;
+        return "Ungültiges Format. Erlaubt: 'A' oder Liste wie '2,4-7,12'.";
+      }
+    );
+    if (/^a$/i.test(raw)) {
+      const all = Array.from({ length: 24 }, (_, i) => i + 1);
+      box.line("ok", `Selected: alle 24 Seiten`);
+      return all;
+    }
+    const pages = box.parseRange(raw);
+    if (pages.length === 0) {
+      box.line("warn", "Konnte keine Seiten parsen, nochmal:");
+      continue;
+    }
+    const oob = pages.filter(p => p < 1 || p > 24);
+    if (oob.length) {
+      box.line("warn", `Außerhalb 1–24: ${oob.join(", ")} — nochmal:`);
+      continue;
+    }
+    box.line("ok", `Selected: ${pages.length} Seiten (${pages.join(", ")})`);
+    return pages;
+  }
+}
+
+async function phaseC_AwsRound(box, pages, opts = {}) {
+  box.line("info", "Phase C · AWS Round (Textract)");
+  await sleep(150);
+  const apiKey = "AKIAEXAMPLE5XYZabc1";
+  box.line("dim", `Calling AWS-Textract with API-Key ${maskKey(apiKey)} (region eu-central-1)…`);
+  await sleep(620);
+
+  const blocks = {};
+  for (const p of pages) {
+    if (opts.failOn === p) {
+      box.line("error", `Page ${p}: Textract returned ProvisionedThroughputExceeded — aborting batch.`);
+      throw new Error(`textract-fail:${p}`);
+    }
+    const counts = {
+      LAYOUT_TEXT:           4 + Math.floor(Math.random() * 8),
+      LAYOUT_TITLE:          Math.random() < 0.3 ? 1 : 0,
+      LAYOUT_SECTION_HEADER: 1 + Math.floor(Math.random() * 2),
+      LAYOUT_FIGURE:         Math.random() < 0.5 ? 1 : 0,
+      LAYOUT_LIST:           Math.random() < 0.3 ? 1 : 0,
+    };
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    const summary = Object.entries(counts)
+      .filter(([, n]) => n > 0)
+      .map(([k, n]) => `${n}× ${k}`)
+      .join(", ");
+    blocks[p] = { total, breakdown: counts };
+    box.line("ok", `Page ${p}: ${total} blocks (${summary})`);
+    await sleep(180 + Math.random() * 220);
+  }
+
+  await sleep(200);
+  const cost = (pages.length * 0.000625).toFixed(4);
+  box.line("info", `Textract-Call cost: $${cost} (${pages.length} pages × $0.000625)`);
+  return blocks;
+}
+
+async function phaseD_ConflictCheck(box, pages) {
+  box.line("info", "Phase D · Conflict-Check gegen tl_news");
+  await sleep(140);
+  const decisions = {};
+  // Mock: 30% Wahrscheinlichkeit pro Seite dass schon existiert
+  for (const p of pages) {
+    if (Math.random() > 0.3) {
+      box.line("ok", `Page ${p}: kein Konflikt — wird neu angelegt.`);
+      decisions[p] = "new";
+      continue;
+    }
+    const choice = await box.prompt(
+      `Page ${p} existiert in MBJ-234. [E]rsetzen / [Ü]berspringen / [N]eue Version:`,
+      (val) => /^[eüun]$/i.test(val) ? null : "Bitte E, Ü oder N."
+    );
+    decisions[p] = ({ e: "replace", "ü": "skip", u: "skip", n: "version" })[choice.toLowerCase()];
+    box.line("dim", `→ Entscheidung: ${decisions[p]}`);
+  }
+  return decisions;
+}
+
+async function phaseE_Insert(box, pages, decisions) {
+  box.line("info", "Phase E · Insert (tl_news + tl_content + tl_files)");
+  await sleep(180);
+  let ok = 0, skipped = 0;
+  for (const p of pages) {
+    if (decisions[p] === "skip") {
+      box.line("dim", `Page ${p}: übersprungen.`);
+      skipped++;
+      continue;
+    }
+    box.line("ok", `Page ${p}: Inserting into MBJ-234 (${decisions[p]}) — done.`);
+    ok++;
+    await sleep(70 + Math.random() * 120);
+  }
+  await sleep(200);
+  box.line("info", `Fertig. ${ok} Seiten importiert, ${skipped} übersprungen.`);
+}
+
+/* ============================================================
+ * Demo-Run-Orchestrator
+ * ============================================================ */
+async function runDemo(box, { failOn = null } = {}) {
+  box.clear();
+  box.reset();
+  box.line("dim", "── PDF-Import demo run · " + new Date().toLocaleTimeString() + " ──");
+  try {
+    await phaseA_LocalSplit(box);
+    const pages   = await phaseB_PageSelection(box);
+    const blocks  = await phaseC_AwsRound(box, pages, { failOn });
+    const choices = await phaseD_ConflictCheck(box, pages);
+    await phaseE_Insert(box, pages, choices);
+    box.line("ok", "✓ ALL DONE.");
+  } catch (err) {
+    box.line("error", "Abort: " + err.message);
+    box.line("dim", "Job-State bleibt persistent — User kann via 'Resume' neu einsteigen.");
+  } finally {
+    box.done();
+  }
+}
+
+/* ============================================================
+ * Boot
+ * ============================================================ */
+const box = new DosBox({
+  output:      document.getElementById("dos-output"),
+  cursor:      document.getElementById("dos-cursor"),
+  inputArea:   document.getElementById("input-area"),
+  promptText:  document.getElementById("input-prompt-text"),
+  inputField:  document.getElementById("input-field"),
+});
+
+document.getElementById("btn-run").addEventListener("click", () => runDemo(box));
+document.getElementById("btn-clear").addEventListener("click", () => {
+  box.clear();
+  box.line("dim", "→ Cleared.");
+});
+document.getElementById("btn-mock-fail").addEventListener("click", () => runDemo(box, { failOn: 5 }));
+</script>
+
+</body>
+</html>
