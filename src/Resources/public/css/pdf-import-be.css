@@ -1,9 +1,27 @@
-/* RCT TOOLBOX — Hauptmenue-Top-Level-Icon
-   Top-Level-Sections im Contao-BE rendern Icons via CSS-Klasse-Background.
-   --icon-* CSS-Variablen aus dem Core-Theme funktionieren hier NICHT, weil
-   url() in Custom-Properties relativ zur USE-Site-CSS aufgeloest wird (nicht
-   zur Origin). Daher: eigenes Bundle-Icon mit absolutem Pfad referenzieren. */
+/* RCT TOOLBOX — BE-Navigation-Icons.
+   Direkter Pfad auf Contaos eigenes Iconset in /system/themes/flexible/icons/
+   (CSS-Custom-Properties wie var(--icon-wrench) funktionieren NICHT aus
+   externer CSS-Datei — url() wird relativ zur Use-Site aufgeloest, nicht
+   zur Origin). Plus dark-mode-Varianten ueber [data-color-scheme=dark]. */
+
+/* --- Top-Level "RCT TOOLBOX" Section --- */
 #tl_navigation .group-rct_toolbox {
-  background: url(/bundles/contaopdfimport/icons/toolbox.svg) 3px 2px no-repeat;
-  background-size: 18px 18px;
+  background: url(/system/themes/flexible/icons/wrench.svg) 3px 2px no-repeat;
+}
+[data-color-scheme=dark] #tl_navigation .group-rct_toolbox {
+  background-image: url(/system/themes/flexible/icons/wrench--dark.svg);
+}
+
+/* --- Sub-Items --- */
+#tl_navigation .navigation.pdf_import {
+  background: url(/system/themes/flexible/icons/cssimport.svg) 3px 2px no-repeat;
+}
+#tl_navigation .navigation.pdf_import_inspector {
+  background: url(/system/themes/flexible/icons/preview.svg) 3px 2px no-repeat;
+}
+[data-color-scheme=dark] #tl_navigation .navigation.pdf_import_inspector {
+  background-image: url(/system/themes/flexible/icons/preview--dark.svg);
+}
+#tl_navigation .navigation.pdf_import_config {
+  background: url(/system/themes/flexible/icons/settings.svg) 3px 2px no-repeat;
 }
