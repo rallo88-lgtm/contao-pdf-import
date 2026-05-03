@@ -1,6 +1,9 @@
 /* RCT TOOLBOX — Hauptmenue-Top-Level-Icon
-   Top-Level-Sections im Contao-BE rendern Icons via CSS-Klasse + CSS-Variable
-   (nicht ueber setExtra('icon', ...) — das gilt nur fuer Sub-Items). */
+   Top-Level-Sections im Contao-BE rendern Icons via CSS-Klasse-Background.
+   --icon-* CSS-Variablen aus dem Core-Theme funktionieren hier NICHT, weil
+   url() in Custom-Properties relativ zur USE-Site-CSS aufgeloest wird (nicht
+   zur Origin). Daher: eigenes Bundle-Icon mit absolutem Pfad referenzieren. */
 #tl_navigation .group-rct_toolbox {
-  background: var(--icon-wrench) 3px 2px no-repeat;
+  background: url(/bundles/contaopdfimport/icons/toolbox.svg) 3px 2px no-repeat;
+  background-size: 18px 18px;
 }
