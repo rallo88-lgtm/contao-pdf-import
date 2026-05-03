@@ -41,10 +41,15 @@ class PdfImportMenuListener
         // Section-Sharing: ggf. existierende Toolbox-Category wiederverwenden.
         $category = $tree->getChild(self::CATEGORY_NAME);
         if (null === $category) {
+            // Trick: parallele Klasse "group-system" piggybackt das Standard-
+            // Contao-Wrench-Icon-CSS (inkl. dark-mode + active-state).
+            // Spart eigenes BE-CSS und Cache-Buster-Listener. Wenn wir spaeter
+            // eigenes Icon wollen, kommt die individuelle Class group-rct_toolbox
+            // mit eigener CSS-Regel dazu.
             $category = $factory->createItem(self::CATEGORY_NAME)
                 ->setLabel(self::CATEGORY_LABEL)
                 ->setUri('/contao?mtg=' . self::CATEGORY_NAME)
-                ->setLinkAttribute('class', 'group-' . self::CATEGORY_NAME)
+                ->setLinkAttribute('class', 'group-rct_toolbox group-system')
                 ->setLinkAttribute('data-action', 'contao--toggle-navigation#toggle:prevent')
                 ->setLinkAttribute('data-contao--toggle-navigation-category-param', self::CATEGORY_NAME)
                 ->setLinkAttribute('aria-controls', self::CATEGORY_NAME)
@@ -52,9 +57,7 @@ class PdfImportMenuListener
                 ->setLinkAttribute('data-turbo-prefetch', 'false')
                 ->setLinkAttribute('data-contao--tooltips-target', 'tooltip')
                 ->setLinkAttribute('title', 'Bereich schließen')
-                ->setChildrenAttribute('id', self::CATEGORY_NAME)
-                ->setExtra('icon', self::ICON_BASE . '/toolbox.svg')
-                ->setExtra('isSafe', true);
+                ->setChildrenAttribute('id', self::CATEGORY_NAME);
             $tree->addChild($category);
         }
 
