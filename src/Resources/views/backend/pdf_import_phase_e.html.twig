@@ -1,0 +1,63 @@
+{% extends '@Contao_ContaoCoreBundle/be_main.html.twig' %}
+
+{% block title %}Phase E – Real Insert – Job #{{ job.id }}{% endblock %}
+
+{% block main_content %}
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/dos-box.css">
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/jobs.css">
+
+    <div id="tl_buttons">
+        <a href="{{ path('pdf_import_job', {'id': job.id}) }}" class="header_back" title="Zurueck zu Job-Detail">Zurueck</a>
+    </div>
+
+    <h2 class="sub_headline">Phase E — Real Insert · Job #{{ job.id }}</h2>
+
+    {% if not statusOk %}
+        <div class="tl_message">
+            <p class="tl_error">
+                Falscher Status: <code>{{ job.status.value }}</code> — Phase E braucht <code>conflicts_resolved</code> oder <code>completed</code> (Re-Run).
+            </p>
+        </div>
+    {% else %}
+        <div class="tl_message">
+            <p class="tl_info">
+                <strong>{{ job.pdfName }}</strong> ·
+                {% if job.detectedIssueNumber %}
+                    Erkannte Ausgabe: <strong>MBJ-{{ job.detectedIssueNumber }}</strong> ·
+                {% endif %}
+                Target: <code>tl_news_archive id={{ job.targetArchivePid }}</code>
+            </p>
+            <p class="tl_info">
+                <strong>Aktionsplan:</strong>
+                {{ news }} neu, {{ replaces }} ersetzt, {{ skips }} übersprungen.
+                Alle neu/ersetzt-Pages werden mit <code>published=0</code> angelegt — bitte via FE-Newsreader prüfen, dann in
+                <code>tl_news</code> manuell auf <code>published=1</code> stellen.
+            </p>
+            <p class="tl_info">
+                Bilder landen unter <code>files/mbj-import/MBJ-{{ job.detectedIssueNumber }}/</code> und werden in <code>tl_files</code> registriert (Folder-Hierarchie wird automatisch angelegt).
+            </p>
+        </div>
+
+        <form method="POST" class="tl_form" id="phase-e-form" data-turbo="false" data-stream-url="{{ path('pdf_import_phase_e_stream') }}">
+            <input type="hidden" name="REQUEST_TOKEN" value="{{ request_token }}">
+            <input type="hidden" name="job_id" value="{{ job.id }}">
+            <div class="tl_formbody_submit">
+                <div class="tl_submit_container">
+                    <button type="submit" class="tl_submit" id="phase-e-submit">Phase E starten · Real Insert</button>
+                    <a id="phase-e-result-link" href="#" class="tl_submit" style="display:none; margin-left:10px">&rarr; Job-Detail anzeigen</a>
+                </div>
+            </div>
+        </form>
+
+        <div class="dos-box-host" style="margin-top:24px">
+            {% from "@ContaoPdfImport/components/_dos_box.html.twig" import dos_box %}
+            {% set header %}<pre class="dos-header">╔══════════════════════════════════════════════════════════════════╗
+║  <span class="title">RCT TOOLBOX · PDF-IMPORT · PHASE E</span>     <span class="subtitle">v0.1 · LIVE INSERT</span>     ║
+╚══════════════════════════════════════════════════════════════════╝</pre>{% endset %}
+            {{ dos_box(header) }}
+        </div>
+
+        <script src="/bundles/contaopdfimport/js/dos-box.js"></script>
+        <script src="/bundles/contaopdfimport/js/phase-stream.js"></script>
+    {% endif %}
+{% endblock %}
