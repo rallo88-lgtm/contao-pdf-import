@@ -69,12 +69,13 @@
     refreshUI();
   }
 
-  // Thumbnail click → toggle
+  // Native label-toggles-checkbox-Verhalten nutzen, nur change-Event hooken.
+  // (Vorher: click-Listener mit preventDefault — kollidierte mit dem nativen
+  //  Label→Input-Click-Forwarding und ergab keinen Toggle.)
   thumbs.forEach(t => {
-    t.addEventListener("click", (e) => {
-      e.preventDefault();
-      const cb  = t.querySelector("[data-phase-b-checkbox]");
-      cb.checked = !cb.checked;
+    const cb = t.querySelector("[data-phase-b-checkbox]");
+    if (!cb) return;
+    cb.addEventListener("change", () => {
       t.classList.toggle("is-selected", cb.checked);
       refreshUI();
     });

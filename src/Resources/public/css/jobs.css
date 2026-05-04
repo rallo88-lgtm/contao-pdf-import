@@ -187,13 +187,19 @@
     pointer-events: none;
 }
 
+/* !important + max-width 100% gegen backend.css .tl_form img-Regeln, die
+   sonst die intrinsic 1276x1789-Bildgroesse durchschlagen lassen. */
 .phase-b-thumb img {
-    display: block;
-    width: 100%;
-    height: auto;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: 320px;
+    object-fit: contain;
     background: #f4f4f4;
     line-height: 0;
     border: 1px solid var(--border, #e5e5e5);
+    box-sizing: border-box;
 }
 
 .phase-b-thumb-label {

@@ -57,7 +57,7 @@
                     {% set isSelected = p in previouslySelected %}
                     <label class="phase-b-thumb {% if isSelected %}is-selected{% endif %}" data-page="{{ p }}">
                         <input type="checkbox" name="page_{{ p }}" value="1" data-phase-b-checkbox {% if isSelected %}checked{% endif %}>
-                        <img src="{{ path('pdf_import_job_page_image', {'jobId': job.id, 'pageNumber': p}) }}" alt="Seite {{ p }}" loading="lazy">
+                        <img src="{{ path('pdf_import_job_page_image', {'jobId': job.id, 'pageNumber': p}) }}" alt="Seite {{ p }}" loading="lazy" width="200" height="auto">
                         <span class="phase-b-thumb-label">Seite {{ p }}</span>
                         <span class="phase-b-thumb-check">&check;</span>
                     </label>
