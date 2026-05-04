@@ -64,10 +64,11 @@ final class JobRepository
      */
     public function findRecent(int $limit = 50): array
     {
+        // LIMIT direkt einsetzen — vertrauenswuerdiger int-Param, kein
+        // SQL-Injection-Risk. Vermeidet Doctrine-DBAL-4-API-Drift bei
+        // typed parameters (ParameterType::INTEGER vs PDO::PARAM_INT).
         $rows = $this->db->fetchAllAssociative(
-            'SELECT * FROM tl_pdf_import_job ORDER BY id DESC LIMIT :limit',
-            ['limit' => $limit],
-            ['limit' => \PDO::PARAM_INT],
+            sprintf('SELECT * FROM tl_pdf_import_job ORDER BY id DESC LIMIT %d', max(1, $limit)),
         );
         return array_map([Job::class, 'fromRow'], $rows);
     }
