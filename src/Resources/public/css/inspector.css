@@ -1,5 +1,32 @@
 /* Textract-Inspektor — Two-Pane-Layout + BBox-Overlay */
 
+.issue-banner {
+    border-left: 4px solid #10b981;
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.issue-banner .issue-number {
+    font-size: 16px;
+    font-weight: 700;
+    color: #047857;
+    background: rgba(16, 185, 129, 0.18);
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin: 0 6px;
+}
+
+.issue-banner .issue-date {
+    font-size: 13px;
+    color: var(--text-muted, #555);
+    margin-right: 10px;
+}
+
+.issue-banner .issue-meta {
+    font-size: 11px;
+    color: var(--text-muted, #888);
+    margin-left: auto;
+}
+
 .inspector-toolbar {
     display: flex;
     align-items: center;

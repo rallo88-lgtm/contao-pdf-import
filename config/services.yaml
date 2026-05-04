@@ -33,3 +33,7 @@ services:
     # Default-Binding: wer OcrProviderInterface injectet bekommt den äußersten Decorator (LoggingProvider)
     Rallo\ContaoPdfImport\Service\Ocr\OcrProviderInterface:
         alias: Rallo\ContaoPdfImport\Service\Ocr\LoggingOcrProvider
+
+    # Issue-Detection: Default-Implementation aus LAYOUT_FOOTER-Bloecken
+    Rallo\ContaoPdfImport\Service\IssueDetection\IssueNumberDetectorInterface:
+        alias: Rallo\ContaoPdfImport\Service\IssueDetection\FooterIssueNumberDetector

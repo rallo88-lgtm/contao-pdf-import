@@ -5,6 +5,8 @@ namespace Rallo\ContaoPdfImport\Controller\Backend;
 use Contao\CoreBundle\Controller\AbstractBackendController;
 use Rallo\ContaoPdfImport\Service\BlockMappingProvider;
 use Rallo\ContaoPdfImport\Service\BlockTextExtractor;
+use Rallo\ContaoPdfImport\Service\EventLogger;
+use Rallo\ContaoPdfImport\Service\IssueDetection\IssueNumberDetectorInterface;
 use Rallo\ContaoPdfImport\Service\Ocr\OcrProviderInterface;
 use Rallo\ContaoPdfImport\Service\PdfPageRasterizer;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -38,6 +40,8 @@ class PdfImportInspectorStreamController extends AbstractBackendController
         private readonly OcrProviderInterface $ocr,
         private readonly BlockTextExtractor $textExtractor,
         private readonly BlockMappingProvider $mapping,
+        private readonly IssueNumberDetectorInterface $issueDetector,
+        private readonly EventLogger $eventLogger,
         private readonly UrlGeneratorInterface $urlGenerator,
         #[Autowire(param: 'kernel.project_dir')]      private readonly string $projectDir,
         #[Autowire(env: 'AWS_REGION')]                private readonly string $awsRegion,
@@ -171,6 +175,32 @@ class PdfImportInspectorStreamController extends AbstractBackendController
                 ? 'Event geloggt: cache_hit=1, cost=0,00 ct'
                 : 'Event geloggt: cache_hit=0, cost=≈0,14 ct');
 
+            // Issue-Detection aus LAYOUT_FOOTER-Block
+            $this->emit('info', 'Issue-Detection · Footer-Scan...');
+            $issue = $this->issueDetector->detectFromResult($result);
+            if ($issue !== null) {
+                $this->emit('ok', sprintf(
+                    'Issue erkannt: %s · Source: %s · Confidence %s%%',
+                    $issue->label(),
+                    $issue->source,
+                    round($issue->confidence, 1),
+                ));
+                $this->emit('dim', 'Footer-Text: "' . $issue->rawText . '"');
+
+                $this->eventLogger->log(
+                    eventType: 'issue.detected',
+                    reference: 'MBJ-' . $issue->number,
+                    metadata: [
+                        'source'      => 'inspector',
+                        'pdf_name'    => $file->getClientOriginalName(),
+                        'page_number' => $pageNumber,
+                        'issue'       => $issue->toArray(),
+                    ],
+                );
+            } else {
+                $this->emit('warn', 'Issue-Number nicht erkennbar — kein LAYOUT_FOOTER mit "Nr. XXX" Pattern.');
+            }
+
             // Build enriched run-data, persistieren fuer GET ?run=hash
             $blockMap = $result->getBlockMap();
             $enriched = [];
@@ -203,6 +233,7 @@ class PdfImportInspectorStreamController extends AbstractBackendController
                 'blocks'      => $enriched,
                 'totalBlocks' => count($result->blocks),
                 'wasCached'   => $result->wasCached,
+                'issue'       => $issue?->toArray(),
             ], JSON_UNESCAPED_UNICODE));
 
             $tTotalMs = (int) round((microtime(true) - $tStart) * 1000);

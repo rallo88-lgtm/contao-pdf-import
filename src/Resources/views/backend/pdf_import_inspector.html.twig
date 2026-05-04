@@ -12,6 +12,17 @@
     <h2 class="sub_headline">Textract-Inspektor</h2>
 
     {% if mode == 'result' %}
+        {% if issue is defined and issue %}
+            <div class="tl_message issue-banner">
+                <p class="tl_info">
+                    <strong>Erkannte Ausgabe:</strong>
+                    <code class="issue-number">MBJ-{{ issue.number }}</code>
+                    {% if issue.dateText %}<span class="issue-date">{{ issue.dateText }}</span>{% endif %}
+                    <span class="issue-meta">aus <code>LAYOUT_FOOTER</code> &middot; Confidence {{ issue.confidence|round(1) }}%</span>
+                </p>
+            </div>
+        {% endif %}
+
         <div class="tl_message">
             <p class="tl_info">
                 {{ pdfName }} &middot; Seite {{ pageNumber }} / {{ pageCount }} &middot;
