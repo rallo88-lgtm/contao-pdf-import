@@ -60,7 +60,7 @@
                 <tbody>
                     {% for p in selectedPages %}
                         {% set check = checks[p] %}
-                        {% set previousDecision = existingDecisions[p|string]|default(check.exists ? 'replace' : 'new') %}
+                        {% set previousDecision = existingDecisions[p]|default(check.exists ? 'replace' : 'new') %}
                         <tr>
                             <td><strong>Seite {{ p }}</strong></td>
                             <td>
