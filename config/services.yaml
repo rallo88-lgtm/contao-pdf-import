@@ -15,12 +15,21 @@ services:
     Aws\Textract\TextractClient:
         factory: ['@Rallo\ContaoPdfImport\Service\Ocr\TextractClientFactory', 'create']
 
-    # Caching-Decorator wrappt den Textract-Provider — pro sha1(imageBytes) wird die Response in var/cache/textract gespeichert, danach kostenfreie Iteration
+    # Decorator-Chain (von innen nach außen):
+    #   TextractOcrProvider  ← echter AWS-SDK-Aufruf
+    #     ↑ wraps in
+    #   CachingOcrProvider   ← sha1(imageBytes) Cache, setzt wasCached-Flag
+    #     ↑ wraps in
+    #   LoggingOcrProvider   ← schreibt 1 Event pro analyzePage in tl_pdf_import_event
     Rallo\ContaoPdfImport\Service\Ocr\CachingOcrProvider:
         arguments:
             $inner: '@Rallo\ContaoPdfImport\Service\Ocr\TextractOcrProvider'
             $cacheDir: '%kernel.project_dir%/var/cache/textract'
 
-    # Default-Binding: wer OcrProviderInterface injectet bekommt den Caching-Provider
+    Rallo\ContaoPdfImport\Service\Ocr\LoggingOcrProvider:
+        arguments:
+            $inner: '@Rallo\ContaoPdfImport\Service\Ocr\CachingOcrProvider'
+
+    # Default-Binding: wer OcrProviderInterface injectet bekommt den äußersten Decorator (LoggingProvider)
     Rallo\ContaoPdfImport\Service\Ocr\OcrProviderInterface:
-        alias: Rallo\ContaoPdfImport\Service\Ocr\CachingOcrProvider
+        alias: Rallo\ContaoPdfImport\Service\Ocr\LoggingOcrProvider

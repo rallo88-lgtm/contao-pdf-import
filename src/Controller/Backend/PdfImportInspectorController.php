@@ -82,6 +82,11 @@ class PdfImportInspectorController extends AbstractBackendController
                 $pageNumber,
                 $rastered['width'],
                 $rastered['height'],
+                reference: sprintf('%s/p%d', $file->getClientOriginalName(), $pageNumber),
+                extraMeta: [
+                    'source'   => 'inspector',
+                    'pdf_name' => $file->getClientOriginalName(),
+                ],
             );
         } catch (\Throwable $e) {
             return $this->renderForm('Verarbeitung fehlgeschlagen: ' . $e->getMessage());

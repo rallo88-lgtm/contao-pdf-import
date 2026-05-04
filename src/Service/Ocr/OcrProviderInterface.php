@@ -9,5 +9,7 @@ interface OcrProviderInterface
         int $pageNumber,
         int $imageWidth,
         int $imageHeight,
+        ?string $reference = null,
+        array $extraMeta = [],
     ): OcrResult;
 }

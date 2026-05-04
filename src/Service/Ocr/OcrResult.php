@@ -9,7 +9,19 @@ final class OcrResult
         public readonly array $blocks,
         public readonly int $imageWidth,
         public readonly int $imageHeight,
+        public readonly bool $wasCached = false,
     ) {}
+
+    public function withCacheHit(bool $hit): self
+    {
+        return new self(
+            pageNumber:  $this->pageNumber,
+            blocks:      $this->blocks,
+            imageWidth:  $this->imageWidth,
+            imageHeight: $this->imageHeight,
+            wasCached:   $hit,
+        );
+    }
 
     public function getLayoutBlocks(): array
     {

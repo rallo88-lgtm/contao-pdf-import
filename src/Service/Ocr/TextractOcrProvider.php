@@ -22,6 +22,8 @@ final class TextractOcrProvider implements OcrProviderInterface
         int $pageNumber,
         int $imageWidth,
         int $imageHeight,
+        ?string $reference = null,
+        array $extraMeta = [],
     ): OcrResult {
         $this->logger->info('Textract analyzeDocument', [
             'page'   => $pageNumber,

@@ -14,6 +14,8 @@ final class CachingOcrProvider implements OcrProviderInterface
         int $pageNumber,
         int $imageWidth,
         int $imageHeight,
+        ?string $reference = null,
+        array $extraMeta = [],
     ): OcrResult {
         $key       = sha1($imageBytes);
         $cachePath = $this->cacheDir . '/' . $key . '.json';
@@ -23,12 +25,19 @@ final class CachingOcrProvider implements OcrProviderInterface
             if ($raw !== false) {
                 $data = json_decode($raw, true);
                 if (is_array($data)) {
-                    return OcrResult::fromArray($data);
+                    return OcrResult::fromArray($data)->withCacheHit(true);
                 }
             }
         }
 
-        $result = $this->inner->analyzePage($imageBytes, $pageNumber, $imageWidth, $imageHeight);
+        $result = $this->inner->analyzePage(
+            $imageBytes,
+            $pageNumber,
+            $imageWidth,
+            $imageHeight,
+            $reference,
+            $extraMeta,
+        );
 
         if (!is_dir($this->cacheDir)) {
             mkdir($this->cacheDir, 0775, true);

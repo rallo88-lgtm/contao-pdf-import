@@ -1,0 +1,135 @@
+/* RCT TOOLBOX — Stats & Costs */
+
+.stats-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin: 16px 0 24px;
+}
+
+.stats-kpi {
+    background: var(--form-bg, #fff);
+    border: 1px solid var(--border, #ccc);
+    border-radius: 3px;
+    padding: 14px 16px;
+    position: relative;
+}
+
+.stats-kpi-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted, #888);
+    margin: 0 0 6px;
+}
+
+.stats-kpi-value {
+    font-family: var(--font-mono, monospace);
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text, #222);
+    line-height: 1.1;
+}
+
+.stats-kpi-sub {
+    font-size: 11px;
+    color: var(--text-muted, #888);
+    margin-top: 4px;
+}
+
+.stats-kpi.is-cost .stats-kpi-value {
+    color: #d97706;
+}
+
+.stats-kpi.is-cache .stats-kpi-value {
+    color: #059669;
+}
+
+.stats-section {
+    margin-top: 24px;
+}
+
+.stats-section h3 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted, #666);
+}
+
+.stats-events {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.stats-events th,
+.stats-events td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border, #e5e5e5);
+    text-align: left;
+    vertical-align: top;
+}
+
+.stats-events thead th {
+    background: var(--header-bg, #f4f4f4);
+    font-weight: 600;
+}
+
+.stats-events code {
+    font-size: 11px;
+    background: rgba(0, 0, 0, 0.04);
+    padding: 1px 4px;
+    border-radius: 2px;
+}
+
+.stats-events tr.is-cache-hit td:first-child {
+    box-shadow: inset 4px 0 0 #10b981;
+}
+.stats-events tr.is-cache-miss td:first-child {
+    box-shadow: inset 4px 0 0 #d97706;
+}
+
+.stats-events .col-cost {
+    font-family: var(--font-mono, monospace);
+    text-align: right;
+    white-space: nowrap;
+}
+
+.stats-events .col-meta {
+    color: var(--text-muted, #888);
+    font-size: 11px;
+}
+
+.stats-empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted, #888);
+    font-style: italic;
+}
+
+.stats-by-type {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 10px;
+}
+
+.stats-by-type-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--form-bg, #fff);
+    border: 1px solid var(--border, #ccc);
+    border-radius: 3px;
+}
+
+.stats-by-type-row code {
+    font-size: 11px;
+}
+
+.stats-by-type-row .count {
+    font-family: var(--font-mono, monospace);
+    font-weight: 600;
+    color: var(--text, #222);
+}

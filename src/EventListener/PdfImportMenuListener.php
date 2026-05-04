@@ -77,6 +77,14 @@ class PdfImportMenuListener
         ->setLinkAttribute('class', 'navigation pdf_import_inspector')
         ->setCurrent($current === 'pdf_import_inspector');
 
+        $category->addChild('pdf_import_stats', [
+            'route'  => 'pdf_import_stats',
+            'label'  => 'Statistik & Kosten',
+            'extras' => ['icon' => self::ICON_BASE . '/chart.svg', 'isSafe' => true],
+        ])
+        ->setLinkAttribute('class', 'navigation pdf_import_stats')
+        ->setCurrent($current === 'pdf_import_stats');
+
         $category->addChild('pdf_import_config', [
             'route'  => 'pdf_import_config',
             'label'  => 'Konfiguration',

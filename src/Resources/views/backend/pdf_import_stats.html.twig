@@ -1,0 +1,109 @@
+{% extends '@Contao_ContaoCoreBundle/be_main.html.twig' %}
+
+{% block title %}Statistik &amp; Kosten – PDF-Import{% endblock %}
+
+{% block main_content %}
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/stats.css">
+
+    <div id="tl_buttons">
+        <a href="{{ path('contao_backend') }}" class="header_back" title="Zurueck">Zurueck</a>
+    </div>
+
+    <h2 class="sub_headline">Statistik &amp; Kosten</h2>
+
+    {% if tableMissing %}
+        <div class="tl_message">
+            <p class="tl_error">
+                Tabelle <code>tl_pdf_import_event</code> existiert noch nicht. Bitte
+                <code>contao:migrate --no-interaction</code> ausfuehren.
+            </p>
+        </div>
+    {% else %}
+        <div class="stats-kpi-grid">
+            <div class="stats-kpi">
+                <p class="stats-kpi-label">Events gesamt</p>
+                <div class="stats-kpi-value">{{ kpi.total_events }}</div>
+                <p class="stats-kpi-sub">alle Toolbox-Aktionen</p>
+            </div>
+
+            <div class="stats-kpi">
+                <p class="stats-kpi-label">OCR-Analysen</p>
+                <div class="stats-kpi-value">{{ kpi.ocr_total }}</div>
+                <p class="stats-kpi-sub">Page-Analysen via Textract (cache + miss)</p>
+            </div>
+
+            <div class="stats-kpi is-cache">
+                <p class="stats-kpi-label">Cache-Hit-Rate</p>
+                <div class="stats-kpi-value">
+                    {% if kpi.cache_rate is not null %}
+                        {{ kpi.cache_rate }}%
+                    {% else %}
+                        –
+                    {% endif %}
+                </div>
+                <p class="stats-kpi-sub">{{ kpi.ocr_cache_hits }} / {{ kpi.ocr_total }} aus dem Cache</p>
+            </div>
+
+            <div class="stats-kpi is-cost">
+                <p class="stats-kpi-label">Kosten gesamt</p>
+                <div class="stats-kpi-value">{{ kpi.total_cost }}</div>
+                <p class="stats-kpi-sub">
+                    {{ kpi.estimated_calls }} echter AWS-Call{{ kpi.estimated_calls == 1 ? '' : 's' }} ·
+                    Schätzung — AWS-Console ist authoritativ
+                </p>
+            </div>
+        </div>
+
+        {% if byType is not empty %}
+            <div class="stats-section">
+                <h3>Nach Event-Typ</h3>
+                <div class="stats-by-type">
+                    {% for t in byType %}
+                        <div class="stats-by-type-row">
+                            <code>{{ t.type }}</code>
+                            <span><span class="count">{{ t.count }}</span> &middot; {{ t.cost }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="stats-section">
+            <h3>Letzte 50 Events</h3>
+            {% if recent is empty %}
+                <p class="stats-empty">Noch keine Events. Sobald der Inspektor oder der Importer einen Lauf macht, taucht hier was auf.</p>
+            {% else %}
+                <table class="stats-events">
+                    <thead>
+                        <tr>
+                            <th style="width:30px">#</th>
+                            <th style="width:140px">Zeit</th>
+                            <th style="width:140px">Typ</th>
+                            <th>Reference</th>
+                            <th style="width:50px">Cache</th>
+                            <th style="width:90px" class="col-cost">Kosten</th>
+                            <th class="col-meta">Meta</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in recent %}
+                            <tr class="{{ e.cache_hit ? 'is-cache-hit' : 'is-cache-miss' }}">
+                                <td>{{ e.id }}</td>
+                                <td>{{ e.tstamp|date('Y-m-d H:i:s') }}</td>
+                                <td><code>{{ e.event_type }}</code></td>
+                                <td>{{ e.reference|default('–') }}</td>
+                                <td>{{ e.cache_hit ? 'HIT' : 'MISS' }}</td>
+                                <td class="col-cost">{{ e.cost }}</td>
+                                <td class="col-meta">
+                                    {% for k, v in e.meta %}
+                                        <code>{{ k }}={{ v is iterable ? v|json_encode : v }}</code>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endblock %}
