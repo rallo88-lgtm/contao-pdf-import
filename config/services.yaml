@@ -10,3 +10,17 @@ services:
             - '../src/Resources/'
             - '../src/ContaoManager/'
             - '../src/ContaoPdfImportBundle.php'
+
+    # Aws\Textract\TextractClient via Factory (Region aus AWS_REGION env, Credentials aus AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY env)
+    Aws\Textract\TextractClient:
+        factory: ['@Rallo\ContaoPdfImport\Service\Ocr\TextractClientFactory', 'create']
+
+    # Caching-Decorator wrappt den Textract-Provider — pro sha1(imageBytes) wird die Response in var/cache/textract gespeichert, danach kostenfreie Iteration
+    Rallo\ContaoPdfImport\Service\Ocr\CachingOcrProvider:
+        arguments:
+            $inner: '@Rallo\ContaoPdfImport\Service\Ocr\TextractOcrProvider'
+            $cacheDir: '%kernel.project_dir%/var/cache/textract'
+
+    # Default-Binding: wer OcrProviderInterface injectet bekommt den Caching-Provider
+    Rallo\ContaoPdfImport\Service\Ocr\OcrProviderInterface:
+        alias: Rallo\ContaoPdfImport\Service\Ocr\CachingOcrProvider
