@@ -20,11 +20,11 @@
         </div>
     {% else %}
         <div class="jobs-toolbar">
-            <button type="button" class="tl_submit" disabled title="Phase 3 / C2 — kommt als naechstes">
+            <a href="{{ path('pdf_import_new') }}" class="tl_submit">
                 + Neuer Import
-            </button>
+            </a>
             <span class="jobs-toolbar-hint">
-                Upload-Form + Phase-A-Endpoint (Local-Split) folgt in C2.
+                Phase A (Upload + Split + Issue-Detection) ist live.
             </span>
         </div>
 
@@ -83,8 +83,8 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="#" class="jobs-action is-disabled" title="C2/C3 — Resume folgt">Resume</a>
-                                <a href="#" class="jobs-action is-disabled" title="Details-View folgt">Details</a>
+                                <a href="{{ path('pdf_import_job', {'id': job.id}) }}" class="jobs-action">Details</a>
+                                <a href="#" class="jobs-action is-disabled" title="C3 — Resume folgt">Resume</a>
                             </td>
                         </tr>
                     {% endfor %}

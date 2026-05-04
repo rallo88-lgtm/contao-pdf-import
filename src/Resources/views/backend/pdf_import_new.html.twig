@@ -1,0 +1,76 @@
+{% extends '@Contao_ContaoCoreBundle/be_main.html.twig' %}
+
+{% block title %}Neuer Import – PDF-Import{% endblock %}
+
+{% block main_content %}
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/dos-box.css">
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/jobs.css">
+
+    <div id="tl_buttons">
+        <a href="{{ path('pdf_import') }}" class="header_back" title="Zurueck zu Job-Listing">Zurueck</a>
+    </div>
+
+    <h2 class="sub_headline">Neuer PDF-Import — Phase A</h2>
+
+    {% if archives is empty %}
+        <div class="tl_message">
+            <p class="tl_error">
+                Keine News-Archive in <code>tl_news_archive</code> vorhanden. Bitte erst eines anlegen
+                (Standard-Contao-News-Module) bevor ein Import gestartet werden kann.
+            </p>
+        </div>
+    {% else %}
+        <div class="tl_listing_container">
+            <div class="tl_message">
+                <p class="tl_info">
+                    Phase A: PDF hochladen, Target-Archive wählen. Beim Submit lädt der Server das PDF,
+                    rastert <strong>alle</strong> Seiten via Imagick, schickt Page 1 an AWS-Textract zur
+                    Issue-Detection (<strong>1 echter Call ≈ 0,14 ct</strong> oder gratis bei Cache-Hit), legt einen
+                    Job in <code>tl_pdf_import_job</code> an. Nach <code>done</code> redirected die Page zur
+                    Job-Detail-Seite, wo Phase B (Page-Auswahl) ansetzen wird.
+                </p>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" class="tl_form" id="phase-a-form" data-turbo="false" data-stream-url="{{ path('pdf_import_phase_a_stream') }}">
+                <input type="hidden" name="REQUEST_TOKEN" value="{{ request_token }}">
+                <fieldset class="tl_box">
+                    <legend>PDF-Upload + Target-Archive</legend>
+                    <div class="tl_formbody_edit">
+                        <div class="w50 widget">
+                            <label for="pdf_upload" class="mandatory">PDF-Datei <span class="mandatory">*</span></label>
+                            <input type="file" name="pdf_upload" id="pdf_upload" accept="application/pdf" class="tl_upload_field" required>
+                            <p class="tl_help">Komplettes PDF (alle Seiten werden gerastert + gespeichert).</p>
+                        </div>
+                        <div class="w50 widget">
+                            <label for="archive_pid" class="mandatory">Target-Archive <span class="mandatory">*</span></label>
+                            <select name="archive_pid" id="archive_pid" class="tl_select" required>
+                                <option value="">— bitte waehlen —</option>
+                                {% for a in archives %}
+                                    <option value="{{ a.id }}">{{ a.title }} (id={{ a.id }})</option>
+                                {% endfor %}
+                            </select>
+                            <p class="tl_help">News-Archiv in das die importierten Seiten als <code>tl_news</code>-Eintraege landen sollen.</p>
+                        </div>
+                    </div>
+                </fieldset>
+                <div class="tl_formbody_submit">
+                    <div class="tl_submit_container">
+                        <button type="submit" class="tl_submit" id="phase-a-submit">Import starten (Phase A)</button>
+                        <a id="phase-a-result-link" href="#" class="tl_submit" style="display:none; margin-left:10px">&rarr; Job-Detail anzeigen</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="dos-box-host" style="margin-top:24px">
+            {% from "@ContaoPdfImport/components/_dos_box.html.twig" import dos_box %}
+            {% set header %}<pre class="dos-header">╔══════════════════════════════════════════════════════════════════╗
+║  <span class="title">RCT TOOLBOX · PDF-IMPORT · PHASE A</span>     <span class="subtitle">v0.1 · LIVE</span>             ║
+╚══════════════════════════════════════════════════════════════════╝</pre>{% endset %}
+            {{ dos_box(header) }}
+        </div>
+
+        <script src="/bundles/contaopdfimport/js/dos-box.js"></script>
+        <script src="/bundles/contaopdfimport/js/phase-stream.js"></script>
+    {% endif %}
+{% endblock %}

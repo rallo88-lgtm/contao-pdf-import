@@ -1,0 +1,86 @@
+{% extends '@Contao_ContaoCoreBundle/be_main.html.twig' %}
+
+{% block title %}Job #{{ job.id }} – PDF-Import{% endblock %}
+
+{% block main_content %}
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/jobs.css">
+
+    <div id="tl_buttons">
+        <a href="{{ path('pdf_import') }}" class="header_back" title="Zurueck zu Job-Listing">Zurueck</a>
+    </div>
+
+    <h2 class="sub_headline">Job #{{ job.id }} — {{ job.pdfName }}</h2>
+
+    <div class="tl_message">
+        <p class="tl_info">
+            <strong>Status:</strong>
+            <span class="jobs-status-badge" style="background:{{ job.status.color }}">{{ job.status.label }}</span>
+            {% if job.lastPhase %} &middot; letzte Phase: <code>{{ job.lastPhase }}</code>{% endif %}
+            &middot; erstellt {{ job.createdAt|date('Y-m-d H:i:s') }}
+            &middot; aktualisiert {{ job.tstamp|date('Y-m-d H:i:s') }}
+        </p>
+    </div>
+
+    <table class="jobs-table" style="margin-top:16px">
+        <tbody>
+            <tr>
+                <th style="width:200px">PDF</th>
+                <td>
+                    <code>{{ job.pdfName }}</code>
+                    <span class="jobs-hash">sha1:{{ job.pdfHash }}</span>
+                </td>
+            </tr>
+            <tr>
+                <th>Page-Count</th>
+                <td>{{ job.pageCount }} Seiten</td>
+            </tr>
+            <tr>
+                <th>Target-Archive</th>
+                <td>
+                    {% if job.targetArchivePid %}
+                        <code>tl_news_archive id={{ job.targetArchivePid }}</code>
+                    {% else %}
+                        <span class="jobs-empty-cell">–</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Erkannte Ausgabe</th>
+                <td>
+                    {% if job.detectedIssueNumber %}
+                        <code class="jobs-issue">MBJ-{{ job.detectedIssueNumber }}</code>
+                        {% if job.detectedIssueDate %}
+                            <span class="jobs-issue-date">{{ job.detectedIssueDate }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="jobs-empty-cell">– (Detection fehlgeschlagen)</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Naechste Phase</th>
+                <td>
+                    {% if job.status.value == 'split_done' %}
+                        Phase B: Page-Auswahl
+                        <span class="jobs-empty-cell">(C3 — kommt als naechstes)</span>
+                    {% elseif job.status.value == 'pages_selected' %}
+                        Phase C: Textract-Loop (C4)
+                    {% elseif job.status.value == 'ocr_done' %}
+                        Phase D: Conflict-Check (C5)
+                    {% elseif job.status.value == 'conflicts_resolved' %}
+                        Phase E: Real Insert (C6)
+                    {% elseif job.status.value == 'completed' %}
+                        <span style="color:#10b981">&check; abgeschlossen</span>
+                    {% else %}
+                        <span class="jobs-empty-cell">–</span>
+                    {% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    {% if payloadJson %}
+        <h3 style="margin-top:24px">Payload (JSON)</h3>
+        <pre style="background:var(--form-bg, #fff); border:1px solid var(--border, #ccc); padding:12px; font-size:11px; overflow-x:auto">{{ payloadJson }}</pre>
+    {% endif %}
+{% endblock %}
