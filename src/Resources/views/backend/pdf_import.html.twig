@@ -1,38 +1,95 @@
 {% extends '@Contao_ContaoCoreBundle/be_main.html.twig' %}
-{% from "@ContaoPdfImport/components/_dos_box.html.twig" import dos_box %}
 
 {% block title %}PDF-Import – RCT Toolbox{% endblock %}
 
 {% block main_content %}
-    <link rel="stylesheet" href="/bundles/contaopdfimport/css/dos-box.css">
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/jobs.css">
 
     <div id="tl_buttons">
-        <a href="{{ path('contao_backend') }}" class="header_back" title="Zurück">Zurück</a>
+        <a href="{{ path('contao_backend') }}" class="header_back" title="Zurueck">Zurueck</a>
     </div>
 
-    <h2 class="sub_headline">PDF-Import — DOS-Box Demo (Mock-Mode)</h2>
+    <h2 class="sub_headline">PDF-Import &mdash; Jobs</h2>
 
-    <div class="tl_message">
-        <p class="tl_info">
-            Phase 3 des Bauplans — DOS-Box-Component aus Standalone-Prototype ins Bundle hieved.
-            Demo-Run unten zeigt die kompletten 5 Phasen mit Mock-Daten ohne echten AWS-Call.
-        </p>
-    </div>
-
-    <div class="dos-box-host">
-        <div class="dos-controls">
-            <button type="button" data-dos-action="run">▶ Demo-Run starten</button>
-            <button type="button" data-dos-action="clear">Löschen</button>
-            <button type="button" data-dos-action="fail">Fail-Pfad simulieren</button>
+    {% if tableMissing %}
+        <div class="tl_message">
+            <p class="tl_error">
+                Tabelle <code>tl_pdf_import_job</code> existiert noch nicht. Bitte
+                <code>contao:migrate --no-interaction</code> ausfuehren.
+            </p>
+        </div>
+    {% else %}
+        <div class="jobs-toolbar">
+            <button type="button" class="tl_submit" disabled title="Phase 3 / C2 — kommt als naechstes">
+                + Neuer Import
+            </button>
+            <span class="jobs-toolbar-hint">
+                Upload-Form + Phase-A-Endpoint (Local-Split) folgt in C2.
+            </span>
         </div>
 
-        {% set header %}<pre class="dos-header">╔══════════════════════════════════════════════════════════════════╗
-║  <span class="title">RCT TOOLBOX · PDF-IMPORT</span>             <span class="subtitle">v0.1 · MOCK MODE</span>             ║
-╚══════════════════════════════════════════════════════════════════╝</pre>{% endset %}
-
-        {{ dos_box(header) }}
-    </div>
-
-    <script src="/bundles/contaopdfimport/js/dos-box.js"></script>
-    <script src="/bundles/contaopdfimport/js/pdf-import-demo.js"></script>
+        {% if jobs is empty %}
+            <div class="jobs-empty">
+                <p>Noch keine Imports gestartet.</p>
+                <p class="jobs-empty-sub">
+                    Sobald der erste PDF-Import laeuft (C2), erscheint hier eine Liste mit Status,
+                    erkannter Ausgabe und Resume-Action pro Job.
+                </p>
+            </div>
+        {% else %}
+            <table class="jobs-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px">#</th>
+                        <th style="width:140px">Erstellt</th>
+                        <th>PDF</th>
+                        <th style="width:60px">Pages</th>
+                        <th style="width:160px">Erkannte Ausgabe</th>
+                        <th style="width:140px">Status</th>
+                        <th style="width:120px">Letzte Phase</th>
+                        <th style="width:140px">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in jobs %}
+                        <tr>
+                            <td>{{ job.id }}</td>
+                            <td>{{ job.createdAt|date('Y-m-d H:i:s') }}</td>
+                            <td>
+                                <code>{{ job.pdfName }}</code>
+                                <span class="jobs-hash">sha1:{{ job.pdfHash|slice(0, 8) }}…</span>
+                            </td>
+                            <td>{{ job.pageCount }}</td>
+                            <td>
+                                {% if job.detectedIssueNumber %}
+                                    <code class="jobs-issue">MBJ-{{ job.detectedIssueNumber }}</code>
+                                    {% if job.detectedIssueDate %}
+                                        <span class="jobs-issue-date">{{ job.detectedIssueDate }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="jobs-empty-cell">–</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="jobs-status-badge" style="background:{{ job.status.color }}">
+                                    {{ job.status.label }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if job.lastPhase %}
+                                    <code>{{ job.lastPhase }}</code>
+                                {% else %}
+                                    <span class="jobs-empty-cell">–</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="#" class="jobs-action is-disabled" title="C2/C3 — Resume folgt">Resume</a>
+                                <a href="#" class="jobs-action is-disabled" title="Details-View folgt">Details</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    {% endif %}
 {% endblock %}

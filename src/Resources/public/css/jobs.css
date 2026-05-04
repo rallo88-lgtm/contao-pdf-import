@@ -1,0 +1,123 @@
+/* RCT TOOLBOX — PDF-Import Job-Listing */
+
+.jobs-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 0 14px;
+    flex-wrap: wrap;
+}
+
+.jobs-toolbar-hint {
+    color: var(--text-muted, #888);
+    font-size: 11px;
+    font-style: italic;
+}
+
+.jobs-empty {
+    padding: 32px 24px;
+    text-align: center;
+    background: var(--form-bg, #fff);
+    border: 1px dashed var(--border, #ccc);
+    border-radius: 3px;
+    color: var(--text-muted, #888);
+}
+
+.jobs-empty p {
+    margin: 0 0 6px;
+}
+
+.jobs-empty-sub {
+    font-size: 11px;
+    font-style: italic;
+}
+
+.jobs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    background: var(--form-bg, #fff);
+    border: 1px solid var(--border, #ccc);
+}
+
+.jobs-table th,
+.jobs-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border, #e5e5e5);
+    text-align: left;
+    vertical-align: top;
+}
+
+.jobs-table thead th {
+    background: var(--header-bg, #f4f4f4);
+    font-weight: 600;
+}
+
+.jobs-table tbody tr:hover {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.jobs-table code {
+    font-size: 11px;
+    background: rgba(0, 0, 0, 0.04);
+    padding: 1px 4px;
+    border-radius: 2px;
+}
+
+.jobs-hash {
+    display: block;
+    font-family: var(--font-mono, monospace);
+    font-size: 10px;
+    color: var(--text-muted, #888);
+    margin-top: 3px;
+}
+
+.jobs-issue {
+    background: rgba(16, 185, 129, 0.18);
+    color: #047857;
+    font-weight: 700;
+}
+
+.jobs-issue-date {
+    display: block;
+    font-size: 10px;
+    color: var(--text-muted, #888);
+    margin-top: 2px;
+}
+
+.jobs-empty-cell {
+    color: var(--text-muted, #aaa);
+}
+
+.jobs-status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-radius: 2px;
+}
+
+.jobs-action {
+    display: inline-block;
+    padding: 2px 8px;
+    margin-right: 4px;
+    font-size: 11px;
+    border: 1px solid var(--border, #ccc);
+    border-radius: 2px;
+    text-decoration: none;
+    color: var(--link, #2563eb);
+    background: var(--form-bg, #fff);
+}
+
+.jobs-action:hover {
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.jobs-action.is-disabled {
+    color: var(--text-muted, #aaa);
+    cursor: not-allowed;
+    pointer-events: none;
+}
