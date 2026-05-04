@@ -11,7 +11,10 @@
     ],
     "require": {
         "php": "^8.2",
-        "contao/core-bundle": "^5.7"
+        "ext-imagick": "*",
+        "contao/core-bundle": "^5.7",
+        "smalot/pdfparser": "^2.12",
+        "aws/aws-sdk-php": "^3.373"
     },
     "autoload": {
         "psr-4": {
