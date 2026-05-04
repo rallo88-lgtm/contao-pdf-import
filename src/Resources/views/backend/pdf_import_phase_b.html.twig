@@ -1,0 +1,90 @@
+{% extends '@Contao_ContaoCoreBundle/be_main.html.twig' %}
+
+{% block title %}Phase B – Page-Auswahl – Job #{{ job.id }}{% endblock %}
+
+{% block main_content %}
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/jobs.css">
+
+    <div id="tl_buttons">
+        <a href="{{ path('pdf_import_job', {'id': job.id}) }}" class="header_back" title="Zurueck zu Job-Detail">Zurueck</a>
+    </div>
+
+    <h2 class="sub_headline">Phase B — Page-Auswahl · Job #{{ job.id }}</h2>
+
+    {% if not statusOk %}
+        <div class="tl_message">
+            <p class="tl_error">
+                Job-Status ist <code>{{ job.status.value }}</code> — Phase B braucht <code>split_done</code> oder <code>pages_selected</code>.
+            </p>
+        </div>
+    {% else %}
+        <div class="tl_message">
+            <p class="tl_info">
+                <strong>{{ job.pdfName }}</strong> · {{ job.pageCount }} Seiten ·
+                {% if job.detectedIssueNumber %}
+                    Erkannte Ausgabe: <strong>MBJ-{{ job.detectedIssueNumber }}</strong>
+                {% endif %}
+            </p>
+            <p class="tl_info">
+                Klick auf Thumbnails togglet Auswahl. <strong>Power-User:</strong> Range-Input direkt unten —
+                z.B. <code>2,4-7,12</code> waehlt Pages 2, 4, 5, 6, 7 und 12.
+            </p>
+        </div>
+
+        {% if app.request.query.get('err') == 'empty' %}
+            <div class="tl_message">
+                <p class="tl_error">Keine Seiten ausgewählt — bitte mind. 1 Page wählen.</p>
+            </div>
+        {% endif %}
+
+        <form method="POST" action="{{ path('pdf_import_phase_b_submit') }}" class="tl_form" id="phase-b-form" data-turbo="false">
+            <input type="hidden" name="REQUEST_TOKEN" value="{{ request_token }}">
+            <input type="hidden" name="job_id" value="{{ job.id }}">
+
+            <div class="phase-b-toolbar">
+                <div class="phase-b-quick">
+                    <button type="button" class="tl_submit" data-phase-b-action="all">Alle</button>
+                    <button type="button" class="tl_submit" data-phase-b-action="none">Keine</button>
+                    <button type="button" class="tl_submit" data-phase-b-action="invert">Umkehren</button>
+                </div>
+                <div class="phase-b-counter">
+                    <span id="phase-b-selected-count">0</span> von {{ job.pageCount }} ausgewählt
+                </div>
+            </div>
+
+            <div class="phase-b-grid" id="phase-b-grid">
+                {% for p in 1..job.pageCount %}
+                    {% set isSelected = p in previouslySelected %}
+                    <label class="phase-b-thumb {% if isSelected %}is-selected{% endif %}" data-page="{{ p }}">
+                        <input type="checkbox" name="page_{{ p }}" value="1" data-phase-b-checkbox {% if isSelected %}checked{% endif %}>
+                        <img src="{{ path('pdf_import_job_page_image', {'jobId': job.id, 'pageNumber': p}) }}" alt="Seite {{ p }}" loading="lazy">
+                        <span class="phase-b-thumb-label">Seite {{ p }}</span>
+                        <span class="phase-b-thumb-check">&check;</span>
+                    </label>
+                {% endfor %}
+            </div>
+
+            <fieldset class="tl_box" style="margin-top:18px">
+                <legend>Power-User: Range-Input</legend>
+                <div class="tl_formbody_edit">
+                    <div class="widget">
+                        <input type="text" id="phase-b-range" placeholder="z.B. 2,4-7,12 oder 1-{{ job.pageCount }}" class="tl_text" autocomplete="off">
+                        <p class="tl_help">
+                            Sync mit Thumbnail-Auswahl: Tippen aktualisiert die Thumbnails, Click auf Thumbnails aktualisiert das Feld.
+                        </p>
+                    </div>
+                </div>
+            </fieldset>
+
+            <input type="hidden" name="selected_pages" id="phase-b-selected-pages" value="{{ previouslySelected|join(',') }}">
+
+            <div class="tl_formbody_submit">
+                <div class="tl_submit_container">
+                    <button type="submit" class="tl_submit" id="phase-b-submit">Auswahl speichern → Phase C</button>
+                </div>
+            </div>
+        </form>
+
+        <script src="/bundles/contaopdfimport/js/phase-b.js"></script>
+    {% endif %}
+{% endblock %}

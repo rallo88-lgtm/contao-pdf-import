@@ -61,10 +61,14 @@
                 <th>Naechste Phase</th>
                 <td>
                     {% if job.status.value == 'split_done' %}
-                        Phase B: Page-Auswahl
-                        <span class="jobs-empty-cell">(C3 — kommt als naechstes)</span>
+                        <a href="{{ path('pdf_import_phase_b', {'id': job.id}) }}" class="tl_submit">
+                            Phase B starten · Page-Auswahl &rarr;
+                        </a>
                     {% elseif job.status.value == 'pages_selected' %}
-                        Phase C: Textract-Loop (C4)
+                        <a href="{{ path('pdf_import_phase_b', {'id': job.id}) }}" class="jobs-action">
+                            &larr; Phase B (Auswahl ändern)
+                        </a>
+                        <span style="margin-left:10px">Phase C: Textract-Loop <span class="jobs-empty-cell">(C4 — folgt)</span></span>
                     {% elseif job.status.value == 'ocr_done' %}
                         Phase D: Conflict-Check (C5)
                     {% elseif job.status.value == 'conflicts_resolved' %}
