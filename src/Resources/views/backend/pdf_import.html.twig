@@ -26,7 +26,20 @@
             <span class="jobs-toolbar-hint">
                 Phase A (Upload + Split + Issue-Detection) ist live.
             </span>
+
+            <form method="POST" action="{{ path('pdf_import_op_reset') }}" data-turbo="false" style="margin-left:auto">
+                <input type="hidden" name="REQUEST_TOKEN" value="{{ request_token }}">
+                <button type="submit" class="tl_submit" title="OpCache zuruecksetzen — nach Bundle-Code-Updates noetig auf Mittwald (FPM cached Bytecode)">
+                    🔄 OpCache reset
+                </button>
+            </form>
         </div>
+
+        {% if app.request.query.get('opcache') %}
+            <div class="tl_message">
+                <p class="tl_confirm">OpCache: <code>{{ app.request.query.get('opcache') }}</code></p>
+            </div>
+        {% endif %}
 
         {% if jobs is empty %}
             <div class="jobs-empty">
