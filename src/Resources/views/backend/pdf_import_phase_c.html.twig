@@ -1,0 +1,59 @@
+{% extends '@Contao_ContaoCoreBundle/be_main.html.twig' %}
+
+{% block title %}Phase C – Textract-Loop – Job #{{ job.id }}{% endblock %}
+
+{% block main_content %}
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/dos-box.css">
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/jobs.css">
+
+    <div id="tl_buttons">
+        <a href="{{ path('pdf_import_job', {'id': job.id}) }}" class="header_back" title="Zurueck zu Job-Detail">Zurueck</a>
+    </div>
+
+    <h2 class="sub_headline">Phase C — Textract-Loop · Job #{{ job.id }}</h2>
+
+    {% if not statusOk %}
+        <div class="tl_message">
+            <p class="tl_error">
+                Falscher Status: <code>{{ job.status.value }}</code> — Phase C braucht <code>pages_selected</code> oder <code>ocr_done</code> (Re-Run).
+            </p>
+        </div>
+    {% else %}
+        <div class="tl_message">
+            <p class="tl_info">
+                <strong>{{ job.pdfName }}</strong> ·
+                {% if job.detectedIssueNumber %}
+                    Erkannte Ausgabe: <strong>MBJ-{{ job.detectedIssueNumber }}</strong> ·
+                {% endif %}
+                {{ selectedPages|length }} Pages ausgewählt: <code>{{ selectedPages|join(', ') }}</code>
+            </p>
+            <p class="tl_info">
+                Phase C ruft pro Page Textract auf. Cache-Hits sind kostenfrei, Misses ≈ 0,14 ct pro Page.
+                <strong>Worst-case-Kosten:</strong> {{ (maxCostMicros / 10000)|number_format(2, ',', '.') }} ct
+                (alle {{ selectedPages|length }} Pages neu) · <strong>Best-case:</strong> 0,00 ct (alles aus Cache).
+            </p>
+        </div>
+
+        <form method="POST" class="tl_form" id="phase-c-form" data-turbo="false" data-stream-url="{{ path('pdf_import_phase_c_stream') }}">
+            <input type="hidden" name="REQUEST_TOKEN" value="{{ request_token }}">
+            <input type="hidden" name="job_id" value="{{ job.id }}">
+            <div class="tl_formbody_submit">
+                <div class="tl_submit_container">
+                    <button type="submit" class="tl_submit" id="phase-c-submit">Phase C starten · Textract-Loop</button>
+                    <a id="phase-c-result-link" href="#" class="tl_submit" style="display:none; margin-left:10px">&rarr; Job-Detail anzeigen</a>
+                </div>
+            </div>
+        </form>
+
+        <div class="dos-box-host" style="margin-top:24px">
+            {% from "@ContaoPdfImport/components/_dos_box.html.twig" import dos_box %}
+            {% set header %}<pre class="dos-header">╔══════════════════════════════════════════════════════════════════╗
+║  <span class="title">RCT TOOLBOX · PDF-IMPORT · PHASE C</span>     <span class="subtitle">v0.1 · LIVE</span>             ║
+╚══════════════════════════════════════════════════════════════════╝</pre>{% endset %}
+            {{ dos_box(header) }}
+        </div>
+
+        <script src="/bundles/contaopdfimport/js/dos-box.js"></script>
+        <script src="/bundles/contaopdfimport/js/phase-stream.js"></script>
+    {% endif %}
+{% endblock %}
