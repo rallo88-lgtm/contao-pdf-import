@@ -79,14 +79,18 @@
                             &larr; Phase C (Re-Run)
                         </a>
                     {% elseif job.status.value == 'conflicts_resolved' %}
-                        <a href="{{ path('pdf_import_phase_d', {'id': job.id}) }}" class="jobs-action">
+                        <a href="{{ path('pdf_import_phase_e', {'id': job.id}) }}" class="tl_submit">
+                            Phase E starten · Real Insert &rarr;
+                        </a>
+                        <a href="{{ path('pdf_import_phase_d', {'id': job.id}) }}" class="jobs-action" style="margin-left:6px">
                             &larr; Phase D (Entscheidungen ändern)
                         </a>
-                        <span style="margin-left:10px">Phase E: Real Insert <span class="jobs-empty-cell">(C6 — folgt)</span></span>
-                    {% elseif job.status.value == 'conflicts_resolved' %}
-                        Phase E: Real Insert (C6)
                     {% elseif job.status.value == 'completed' %}
-                        <span style="color:#10b981">&check; abgeschlossen</span>
+                        <span style="color:#10b981; font-weight:600">&check; abgeschlossen</span>
+                        <a href="{{ path('pdf_import_phase_e', {'id': job.id}) }}" class="jobs-action" style="margin-left:10px">Phase E (Re-Run)</a>
+                    {% elseif job.status.value == 'failed' %}
+                        <span style="color:#ef4444; font-weight:600">&times; fehlgeschlagen</span>
+                        <a href="{{ path('pdf_import_phase_e', {'id': job.id}) }}" class="tl_submit" style="margin-left:10px">Re-Run</a>
                     {% else %}
                         <span class="jobs-empty-cell">–</span>
                     {% endif %}
