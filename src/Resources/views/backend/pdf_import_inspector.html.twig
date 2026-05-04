@@ -104,6 +104,8 @@
 
         <script src="/bundles/contaopdfimport/js/inspector.js"></script>
     {% else %}
+        <link rel="stylesheet" href="/bundles/contaopdfimport/css/dos-box.css">
+
         {% if error %}
             <div class="tl_message">
                 <p class="tl_error">{{ error }}</p>
@@ -113,17 +115,17 @@
         <div class="tl_listing_container">
             <div class="tl_message">
                 <p class="tl_info">
-                    PDF hochladen + Seitennummer w&auml;hlen. Inspektor rastert die Seite via Imagick,
-                    schickt sie an AWS-Textract, zeigt links das Bild + rechts die erkannten Bl&ouml;cke
-                    mit Bounding-Box-Overlay und Mapping-Vorschau. Read-only &mdash; schreibt nichts in tl_news.
+                    PDF hochladen + Seitennummer w&auml;hlen. Beim Submit l&auml;uft die Verarbeitung
+                    als Live-Stream — die DOS-Box unten zeigt jeden Schritt (Rasterize, Cache-Check,
+                    Textract-Call, Logging). Bei <code>done</code> wird automatisch zur Ergebnis-Page weitergeleitet.
                 </p>
                 <p class="tl_info">
-                    Erste Analyse pro PDF-Seite kostet ca. 0,15&nbsp;Cent bei AWS-Textract. Identische Seiten-Bytes
-                    werden lokal gecacht (sha1-key) und alle Folge-Aufrufe sind kostenfrei.
+                    Erste Analyse pro Seiten-Bytes kostet ca. 0,14&nbsp;Cent bei AWS-Textract. Identische Bytes
+                    werden gecacht (sha1-key) und sind danach gratis.
                 </p>
             </div>
 
-            <form method="POST" enctype="multipart/form-data" class="tl_form" id="inspector-form" data-turbo="false">
+            <form method="POST" enctype="multipart/form-data" class="tl_form" id="inspector-form" data-turbo="false" data-stream-url="{{ path('pdf_import_inspector_stream') }}">
                 <input type="hidden" name="REQUEST_TOKEN" value="{{ request_token }}">
                 <fieldset class="tl_box">
                     <legend>PDF + Seite w&auml;hlen</legend>
@@ -143,11 +145,21 @@
                 <div class="tl_formbody_submit">
                     <div class="tl_submit_container">
                         <button type="submit" class="tl_submit" id="inspector-submit">Analysieren</button>
+                        <a id="inspector-result-link" href="#" class="tl_submit" style="display:none; margin-left:10px">&rarr; Ergebnis anzeigen</a>
                     </div>
                 </div>
             </form>
         </div>
 
-        <script src="/bundles/contaopdfimport/js/inspector.js"></script>
+        <div class="dos-box-host" style="margin-top:24px">
+            {% from "@ContaoPdfImport/components/_dos_box.html.twig" import dos_box %}
+            {% set header %}<pre class="dos-header">╔══════════════════════════════════════════════════════════════════╗
+║  <span class="title">RCT TOOLBOX · TEXTRACT-INSPEKTOR</span>      <span class="subtitle">v0.1 · LIVE</span>             ║
+╚══════════════════════════════════════════════════════════════════╝</pre>{% endset %}
+            {{ dos_box(header) }}
+        </div>
+
+        <script src="/bundles/contaopdfimport/js/dos-box.js"></script>
+        <script src="/bundles/contaopdfimport/js/inspector-stream.js"></script>
     {% endif %}
 {% endblock %}
