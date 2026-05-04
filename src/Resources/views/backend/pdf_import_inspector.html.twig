@@ -1,0 +1,153 @@
+{% extends '@Contao_ContaoCoreBundle/be_main.html.twig' %}
+
+{% block title %}Textract-Inspektor – PDF-Import{% endblock %}
+
+{% block main_content %}
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/inspector.css">
+
+    <div id="tl_buttons">
+        <a href="{{ path('contao_backend') }}" class="header_back" title="Zurueck">Zurueck</a>
+    </div>
+
+    <h2 class="sub_headline">Textract-Inspektor</h2>
+
+    {% if mode == 'result' %}
+        <div class="tl_message">
+            <p class="tl_info">
+                {{ pdfName }} &middot; Seite {{ pageNumber }} / {{ pageCount }} &middot;
+                {{ blocks|length }} LAYOUT-Blocks ({{ totalBlocks }} insgesamt) &middot;
+                Bild {{ imageWidth }}&times;{{ imageHeight }}&thinsp;px
+            </p>
+        </div>
+
+        <div class="inspector-toolbar">
+            <a href="{{ path('pdf_import_inspector') }}" class="tl_submit">&larr; Neues PDF</a>
+            <label><input type="checkbox" id="bbox-toggle" checked> BBox-Overlay</label>
+            <label><input type="checkbox" id="bbox-fill"> Fl&auml;chen f&uuml;llen</label>
+            <span class="inspector-legend">
+                {% for type, label in {
+                    'LAYOUT_TITLE': 'Title',
+                    'LAYOUT_SECTION_HEADER': 'Section',
+                    'LAYOUT_TEXT': 'Text',
+                    'LAYOUT_LIST': 'List',
+                    'LAYOUT_TABLE': 'Table',
+                    'LAYOUT_FIGURE': 'Figure',
+                    'LAYOUT_KEY_VALUE': 'KeyValue',
+                    'LAYOUT_PAGE_NUMBER': 'PageNum',
+                    'LAYOUT_HEADER': 'Header',
+                    'LAYOUT_FOOTER': 'Footer'
+                } %}
+                    {% set color = {
+                        'LAYOUT_TITLE': '#ef4444', 'LAYOUT_SECTION_HEADER': '#f97316',
+                        'LAYOUT_TEXT': '#3b82f6', 'LAYOUT_LIST': '#8b5cf6',
+                        'LAYOUT_TABLE': '#06b6d4', 'LAYOUT_FIGURE': '#10b981',
+                        'LAYOUT_KEY_VALUE': '#a855f7', 'LAYOUT_PAGE_NUMBER': '#71717a',
+                        'LAYOUT_HEADER': '#71717a', 'LAYOUT_FOOTER': '#71717a'
+                    }[type] %}
+                    <span class="legend-chip"><span class="legend-swatch" style="background:{{ color }}"></span>{{ label }}</span>
+                {% endfor %}
+            </span>
+        </div>
+
+        <div class="inspector-grid">
+            <div class="inspector-pane inspector-image">
+                <div class="image-wrap" style="aspect-ratio: {{ imageWidth }} / {{ imageHeight }}">
+                    <img src="{{ path('pdf_import_inspector_image', {'hash': imageHash}) }}" alt="Page {{ pageNumber }}">
+                    <svg class="bbox-overlay" viewBox="0 0 {{ imageWidth }} {{ imageHeight }}" preserveAspectRatio="none">
+                        {% for b in blocks %}
+                            <rect
+                                x="{{ (b.box.Left * imageWidth)|round }}"
+                                y="{{ (b.box.Top * imageHeight)|round }}"
+                                width="{{ (b.box.Width * imageWidth)|round }}"
+                                height="{{ (b.box.Height * imageHeight)|round }}"
+                                fill="{{ b.color }}" fill-opacity="0"
+                                stroke="{{ b.color }}" stroke-width="3"
+                                data-block-id="{{ b.id }}"
+                            ><title>{{ b.type }} ({{ b.confidence }}%)</title></rect>
+                        {% endfor %}
+                    </svg>
+                </div>
+            </div>
+
+            <div class="inspector-pane inspector-blocks">
+                <table class="tl_listing">
+                    <thead>
+                        <tr>
+                            <th style="width:40px">#</th>
+                            <th style="width:130px">Typ</th>
+                            <th style="width:60px">Conf.</th>
+                            <th style="width:140px">Mapping &rarr; CE</th>
+                            <th>Text-Vorschau</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in blocks %}
+                            <tr data-block-id="{{ b.id }}" style="--block-color: {{ b.color }}">
+                                <td>{{ loop.index }}</td>
+                                <td><span class="block-type-chip" style="background:{{ b.color }}">{{ b.typeShort }}</span></td>
+                                <td>{{ b.confidence }}%</td>
+                                <td>
+                                    {% if b.mappingCe %}
+                                        <code>{{ b.mappingCe }}</code>
+                                        <span class="block-map-label">{{ b.mappingLabel }}</span>
+                                    {% else %}
+                                        <span class="block-map-skip">Skip</span>
+                                    {% endif %}
+                                </td>
+                                <td class="block-text-cell">{{ b.text|length > 100 ? b.text|slice(0, 100) ~ '…' : b.text }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <script src="/bundles/contaopdfimport/js/inspector.js"></script>
+    {% else %}
+        {% if error %}
+            <div class="tl_message">
+                <p class="tl_error">{{ error }}</p>
+            </div>
+        {% endif %}
+
+        <div class="tl_listing_container">
+            <div class="tl_message">
+                <p class="tl_info">
+                    PDF hochladen + Seitennummer w&auml;hlen. Inspektor rastert die Seite via Imagick,
+                    schickt sie an AWS-Textract, zeigt links das Bild + rechts die erkannten Bl&ouml;cke
+                    mit Bounding-Box-Overlay und Mapping-Vorschau. Read-only &mdash; schreibt nichts in tl_news.
+                </p>
+                <p class="tl_info">
+                    Erste Analyse pro PDF-Seite kostet ca. 0,15&nbsp;Cent bei AWS-Textract. Identische Seiten-Bytes
+                    werden lokal gecacht (sha1-key) und alle Folge-Aufrufe sind kostenfrei.
+                </p>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" class="tl_form" id="inspector-form">
+                <input type="hidden" name="REQUEST_TOKEN" value="{{ request_token }}">
+                <fieldset class="tl_box">
+                    <legend>PDF + Seite w&auml;hlen</legend>
+                    <div class="tl_formbody_edit">
+                        <div class="w50 widget">
+                            <label for="pdf_upload" class="mandatory">PDF-Datei <span class="mandatory">*</span></label>
+                            <input type="file" name="pdf_upload" id="pdf_upload" accept="application/pdf" class="tl_upload_field" required>
+                            <p class="tl_help">PDF-Dokument (z.B. eine MBJ-Ausgabe). Wird nur f&uuml;r diese eine Analyse hochgeladen, nicht persistiert.</p>
+                        </div>
+                        <div class="w50 widget">
+                            <label for="page_number">Seitennummer</label>
+                            <input type="number" name="page_number" id="page_number" value="1" min="1" class="tl_text" required>
+                            <p class="tl_help">1-basiert. Bei mehrseitigen PDFs einzeln pro Analyse.</p>
+                        </div>
+                    </div>
+                </fieldset>
+                <div class="tl_formbody_submit">
+                    <div class="tl_submit_container">
+                        <button type="submit" class="tl_submit" id="inspector-submit">Analysieren</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <script src="/bundles/contaopdfimport/js/inspector.js"></script>
+    {% endif %}
+{% endblock %}

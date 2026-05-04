@@ -7,3 +7,6 @@ Thumbs.db
 .env.local
 .env.local.php
 .env.*.local
+
+# Private working directory (Test-PDFs, Notes, Scratch)
+.privat/
