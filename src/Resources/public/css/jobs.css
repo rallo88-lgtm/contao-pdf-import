@@ -243,3 +243,25 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* ============================================================
+   Phase D — Conflict-Check
+   ============================================================ */
+
+.phase-d-radio {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 14px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.phase-d-radio input[type="radio"] {
+    margin: 0;
+}
+
+.phase-d-quick {
+    display: flex;
+    gap: 8px;
+}

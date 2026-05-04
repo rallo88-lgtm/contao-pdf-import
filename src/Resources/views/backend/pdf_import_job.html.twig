@@ -72,10 +72,17 @@
                             &larr; Phase B (Auswahl ändern)
                         </a>
                     {% elseif job.status.value == 'ocr_done' %}
-                        <a href="{{ path('pdf_import_phase_c', {'id': job.id}) }}" class="jobs-action">
+                        <a href="{{ path('pdf_import_phase_d', {'id': job.id}) }}" class="tl_submit">
+                            Phase D starten · Conflict-Check &rarr;
+                        </a>
+                        <a href="{{ path('pdf_import_phase_c', {'id': job.id}) }}" class="jobs-action" style="margin-left:6px">
                             &larr; Phase C (Re-Run)
                         </a>
-                        <span style="margin-left:10px">Phase D: Conflict-Check <span class="jobs-empty-cell">(C5 — folgt)</span></span>
+                    {% elseif job.status.value == 'conflicts_resolved' %}
+                        <a href="{{ path('pdf_import_phase_d', {'id': job.id}) }}" class="jobs-action">
+                            &larr; Phase D (Entscheidungen ändern)
+                        </a>
+                        <span style="margin-left:10px">Phase E: Real Insert <span class="jobs-empty-cell">(C6 — folgt)</span></span>
                     {% elseif job.status.value == 'conflicts_resolved' %}
                         Phase E: Real Insert (C6)
                     {% elseif job.status.value == 'completed' %}

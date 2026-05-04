@@ -1,0 +1,129 @@
+{% extends '@Contao_ContaoCoreBundle/be_main.html.twig' %}
+
+{% block title %}Phase D – Conflict-Check – Job #{{ job.id }}{% endblock %}
+
+{% block main_content %}
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/jobs.css">
+
+    <div id="tl_buttons">
+        <a href="{{ path('pdf_import_job', {'id': job.id}) }}" class="header_back" title="Zurueck zu Job-Detail">Zurueck</a>
+    </div>
+
+    <h2 class="sub_headline">Phase D — Conflict-Check · Job #{{ job.id }}</h2>
+
+    {% if not statusOk %}
+        <div class="tl_message">
+            <p class="tl_error">
+                Falscher Status: <code>{{ job.status.value }}</code> — Phase D braucht <code>ocr_done</code> oder <code>conflicts_resolved</code>.
+            </p>
+        </div>
+    {% else %}
+        <div class="tl_message">
+            <p class="tl_info">
+                <strong>{{ job.pdfName }}</strong> ·
+                {% if job.detectedIssueNumber %}
+                    Erkannte Ausgabe: <strong>MBJ-{{ job.detectedIssueNumber }}</strong> ·
+                {% endif %}
+                Target-Archive: <code>tl_news_archive id={{ job.targetArchivePid }}</code>
+            </p>
+            <p class="tl_info">
+                {% if conflictCount == 0 %}
+                    <span style="color:#10b981; font-weight:600">&check; Keine Konflikte</span> — alle {{ selectedPages|length }} Pages sind neu im Archiv.
+                    Submit speichert <code>decisions</code> und schaltet auf Phase E.
+                {% else %}
+                    <strong style="color:#d97706">{{ conflictCount }} von {{ selectedPages|length }} Pages existieren bereits</strong> —
+                    Default-Aktion ist <code>Ersetzen</code> (alte tl_news-Eintraege werden in Phase E geloescht und neu angelegt).
+                    Pro existing Page kannst du auf <code>Überspringen</code> wechseln.
+                {% endif %}
+            </p>
+            {% if not job.detectedIssueNumber %}
+                <p class="tl_error">
+                    Issue-Number unbekannt — kein deterministischer Conflict-Check möglich. Alle Pages werden als <code>neu</code> behandelt.
+                    Sortierung nach Seitennummer im Archiv funktioniert dann nicht.
+                </p>
+            {% endif %}
+        </div>
+
+        <form method="POST" action="{{ path('pdf_import_phase_d_submit') }}" class="tl_form" id="phase-d-form" data-turbo="false">
+            <input type="hidden" name="REQUEST_TOKEN" value="{{ request_token }}">
+            <input type="hidden" name="job_id" value="{{ job.id }}">
+
+            <table class="jobs-table" style="margin-top:8px">
+                <thead>
+                    <tr>
+                        <th style="width:60px">Page</th>
+                        <th style="width:120px">Status</th>
+                        <th>Bestehende News</th>
+                        <th style="width:280px">Entscheidung</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in selectedPages %}
+                        {% set check = checks[p] %}
+                        {% set previousDecision = existingDecisions[p|string]|default(check.exists ? 'replace' : 'new') %}
+                        <tr>
+                            <td><strong>Seite {{ p }}</strong></td>
+                            <td>
+                                {% if check.exists %}
+                                    <span class="jobs-status-badge" style="background:#d97706">existiert</span>
+                                {% else %}
+                                    <span class="jobs-status-badge" style="background:#10b981">neu</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if check.exists %}
+                                    <code>{{ check.headline }}</code>
+                                    <span class="jobs-hash">id={{ check.newsId }} · alias={{ check.alias }}</span>
+                                {% else %}
+                                    <span class="jobs-empty-cell">–</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if check.exists %}
+                                    <label class="phase-d-radio">
+                                        <input type="radio" name="decision_{{ p }}" value="replace" {% if previousDecision == 'replace' %}checked{% endif %}>
+                                        Ersetzen
+                                    </label>
+                                    <label class="phase-d-radio">
+                                        <input type="radio" name="decision_{{ p }}" value="skip" {% if previousDecision == 'skip' %}checked{% endif %}>
+                                        Überspringen
+                                    </label>
+                                {% else %}
+                                    <input type="hidden" name="decision_{{ p }}" value="new">
+                                    <span class="jobs-empty-cell">wird neu angelegt</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% if conflictCount > 0 %}
+                <div class="phase-d-quick" style="margin-top:14px">
+                    <button type="button" class="tl_submit" data-phase-d-action="all-replace">Alle ersetzen</button>
+                    <button type="button" class="tl_submit" data-phase-d-action="all-skip">Alle überspringen</button>
+                </div>
+            {% endif %}
+
+            <div class="tl_formbody_submit">
+                <div class="tl_submit_container">
+                    <button type="submit" class="tl_submit" id="phase-d-submit">Entscheidungen speichern → Phase E</button>
+                </div>
+            </div>
+        </form>
+
+        <script>
+            (function () {
+                document.querySelectorAll("[data-phase-d-action]").forEach(btn => {
+                    btn.addEventListener("click", () => {
+                        const action = btn.dataset.phaseDAction;
+                        const target = action === "all-replace" ? "replace" : "skip";
+                        document.querySelectorAll('input[type=radio][value="' + target + '"]').forEach(r => {
+                            r.checked = true;
+                        });
+                    });
+                });
+            })();
+        </script>
+    {% endif %}
+{% endblock %}
