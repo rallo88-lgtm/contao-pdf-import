@@ -101,6 +101,7 @@ final class NewsArticleBuilder
                 'teaser'    => $teaser,
                 'published' => 0,
             ], ['id' => $newsId]);
+            $this->traceDateBug($newsId, $date, $time, 'after-update');
             $action = 'replaced';
         } else {
             $alias = $this->buildAlias($issueNum, $pageNumber);
@@ -116,6 +117,7 @@ final class NewsArticleBuilder
                 'published' => 0,
             ]);
             $newsId = (int) $this->db->lastInsertId();
+            $this->traceDateBug($newsId, $date, $time, 'after-insert');
             $action = 'created';
         }
 
@@ -214,5 +216,23 @@ final class NewsArticleBuilder
     {
         // Vorlage-Pattern: timestamp-suffix garantiert Uniqueness ohne extra check.
         return sprintf('mbj-%s-seite-%d-%d', $issueNumber, $pageNumber, time());
+    }
+
+    private function traceDateBug(int $newsId, int $sentDate, int $sentTime, string $stage): void
+    {
+        try {
+            $row = $this->db->fetchAssociative('SELECT date, time FROM tl_news WHERE id=?', [$newsId]);
+            error_log(sprintf(
+                '[PDFIMPORT] %s news_id=%d sent_date=%d sent_time=%d db_date=%s db_time=%s',
+                $stage,
+                $newsId,
+                $sentDate,
+                $sentTime,
+                $row === false ? 'null' : (string) ($row['date'] ?? 'null'),
+                $row === false ? 'null' : (string) ($row['time'] ?? 'null'),
+            ));
+        } catch (\Throwable $e) {
+            error_log('[PDFIMPORT] traceDateBug-FAIL: ' . $e->getMessage());
+        }
     }
 }
