@@ -450,6 +450,17 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
             $bb = $b['Geometry']['BoundingBox'] ?? null;
             return $bb !== null ? (float) ($bb['Width'] ?? 0) : 0.0;
         };
+        // Section-Anker: vollbreite Blocks ODER strukturelle Header-Typen,
+        // unabhaengig von ihrer Breite. SECTION_HEADER kann im Magazin
+        // auch nur eine Spalten-Breite haben (z.B. "Anmeldung zu den Kursen"
+        // mitten in Spalte 2) und markiert dann trotzdem den Inhaltswechsel.
+        $isAnchor = static function (array $b) use ($widthOf): bool {
+            if ($widthOf($b) > 0.5) {
+                return true;
+            }
+            $type = $b['BlockType'] ?? '';
+            return $type === 'LAYOUT_SECTION_HEADER' || $type === 'LAYOUT_TITLE';
+        };
 
         // Phase 1: finde Triples = drei aufeinander folgende LAYOUT_FIGUREs
         // mit distinkten left-Werten (paarweise >=10% auseinander).
@@ -487,7 +498,7 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                     break;
                 }
                 $b = $blocks[$i];
-                if ($widthOf($b) > 0.5) {
+                if ($isAnchor($b)) {
                     $endIdx = $i;
                     break;
                 }
