@@ -243,7 +243,6 @@ final class NewsArticleBuilder
                         'tstamp'   => time(),
                         'type'     => 'gallery',
                         'multiSRC' => serialize($uuids),
-                        'orderSRC' => serialize($uuids),
                         'sortBy'   => 'custom',
                         'perRow'   => \count($uuids),
                         'caption'  => $caption,
