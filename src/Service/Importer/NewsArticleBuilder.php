@@ -246,7 +246,8 @@ final class NewsArticleBuilder
                         'sortBy'   => 'custom',
                         'perRow'   => \count($uuids),
                         'caption'  => $caption,
-                        'cssClass' => 'rct-infografik',
+                        // Contao speichert CSS-Klasse als serialisiertes [id, class]-Tupel
+                        'cssID'    => serialize(['', 'rct-infografik']),
                     ]);
                     $blocksInserted++;
                     continue;
