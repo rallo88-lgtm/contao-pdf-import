@@ -262,8 +262,10 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                     if ((float) ($fbb['Width'] ?? 0) < 0.5) {
                         continue; // nur vollbreite Figures sind Multi-Column-Kandidaten
                     }
-                    // Sammle alle CHILD-Lefts (LINE/WORD-Granularitaet)
-                    $childLefts = [];
+                    // Sammle CHILD-Geometrien (LINE/WORD-Granularitaet) als
+                    // {top, left}-Paare — Filter auf den Headline-Streifen
+                    // braucht beide Werte.
+                    $childPoints = [];
                     foreach ($f['Relationships'] ?? [] as $rel) {
                         if (($rel['Type'] ?? '') !== 'CHILD') {
                             continue;
@@ -274,27 +276,47 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                             if ($cbb === null) {
                                 continue;
                             }
-                            $childLefts[] = (float) ($cbb['Left'] ?? 0);
+                            $childPoints[] = [
+                                'top'  => (float) ($cbb['Top'] ?? 0),
+                                'left' => (float) ($cbb['Left'] ?? 0),
+                            ];
                         }
                     }
-                    if (\count($childLefts) < 9) {
+                    if (\count($childPoints) < 3) {
                         continue;
                     }
-                    sort($childLefts);
+
+                    // Headline-Streifen-Heuristik: nur die obersten LINEs
+                    // (top < firstTop + 2% page-height) als Spalten-Indikator.
+                    // Sub-Donut-Charts und Detail-Texte stehen typografisch
+                    // tiefer und wuerden falsche Sub-Spalten erzeugen.
+                    $firstTop       = min(array_column($childPoints, 'top'));
+                    $headlineCutoff = $firstTop + 0.02;
+                    $headlineLefts  = [];
+                    foreach ($childPoints as $p) {
+                        if ($p['top'] < $headlineCutoff) {
+                            $headlineLefts[] = $p['left'];
+                        }
+                    }
+                    if (\count($headlineLefts) < 2) {
+                        continue;
+                    }
+                    sort($headlineLefts);
                     // Cluster mit 5%-Toleranz (Adjacent-Diff)
-                    $clusters    = [[$childLefts[0]]];
+                    $clusters    = [[$headlineLefts[0]]];
                     $lastCluster = 0;
-                    for ($i = 1; $i < \count($childLefts); $i++) {
-                        if ($childLefts[$i] - end($clusters[$lastCluster]) < 0.05) {
-                            $clusters[$lastCluster][] = $childLefts[$i];
+                    for ($i = 1; $i < \count($headlineLefts); $i++) {
+                        if ($headlineLefts[$i] - end($clusters[$lastCluster]) < 0.05) {
+                            $clusters[$lastCluster][] = $headlineLefts[$i];
                         } else {
-                            $clusters[] = [$childLefts[$i]];
+                            $clusters[] = [$headlineLefts[$i]];
                             $lastCluster++;
                         }
                     }
-                    // Cluster mit >=3 Members behalten
-                    $validClusters = array_values(array_filter($clusters, static fn(array $c) => \count($c) >= 3));
-                    if (\count($validClusters) < 3) {
+                    // Mit Headline-Filter reichen >=1 Member pro Cluster
+                    // (eine Spalten-Headline ist typischerweise eine LINE).
+                    $validClusters = $clusters;
+                    if (\count($validClusters) < 2) {
                         continue;
                     }
                     // Paarweise >=10% Gap auf Cluster-Mitten
