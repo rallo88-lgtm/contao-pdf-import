@@ -1,0 +1,76 @@
+{% extends '@Contao_ContaoCoreBundle/be_main.html.twig' %}
+
+{% block title %}Konfiguration – Contao PDF-Import{% endblock %}
+
+{% block main_content %}
+    <div id="tl_buttons">
+        <a href="{{ path('pdf_import') }}" class="header_back" title="Zurueck">Zurueck</a>
+    </div>
+
+    <h2 class="sub_headline">Konfiguration</h2>
+
+    <div class="tl_listing_container">
+        <div class="tl_formbody">
+
+            <fieldset class="tl_box">
+                <legend>Block-Type → Contao-CE Mapping</legend>
+                <p class="tl_help" style="margin-bottom:8px">
+                    Was Textract pro Page erkennt und in welches <code>tl_content</code>-Element es im
+                    Phase-E-Insert uebersetzt wird. Aktuell fest verdrahtet (read-only); konfigurierbar
+                    wird die Liste mit Phase 4.
+                </p>
+                <table class="tl_listing" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th class="tl_folder_tlist" style="width:30px"></th>
+                            <th class="tl_folder_tlist" style="width:220px">Textract-BlockType</th>
+                            <th class="tl_folder_tlist" style="width:140px">Contao-CE</th>
+                            <th class="tl_folder_tlist">Label im Inspector</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in blockMapping %}
+                            <tr class="{{ loop.index is odd ? 'odd' : 'even' }}">
+                                <td class="tl_file_list">
+                                    <span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:{{ row.color }}; vertical-align:middle"></span>
+                                </td>
+                                <td class="tl_file_list"><code>{{ row.type }}</code></td>
+                                <td class="tl_file_list">
+                                    {% if row.ce %}
+                                        <code>{{ row.ce }}</code>
+                                    {% else %}
+                                        <span style="color:var(--text-muted, #aaa)">— skip —</span>
+                                    {% endif %}
+                                </td>
+                                <td class="tl_file_list">{{ row.label }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </fieldset>
+
+            <fieldset class="tl_box" style="margin-top:1.5em">
+                <legend>Geplante Konfigurations-Stufen (Phase 4)</legend>
+                <table class="tl_listing" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th class="tl_folder_tlist" style="width:60px">Schritt</th>
+                            <th class="tl_folder_tlist" style="width:220px">Name</th>
+                            <th class="tl_folder_tlist">Beschreibung</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for phase in phases %}
+                            <tr class="{{ loop.index is odd ? 'odd' : 'even' }}">
+                                <td class="tl_file_list" style="font-family:var(--font-mono, monospace); font-weight:bold">{{ phase[0] }}</td>
+                                <td class="tl_file_list"><strong>{{ phase[1] }}</strong></td>
+                                <td class="tl_file_list">{{ phase[2] }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </fieldset>
+
+        </div>
+    </div>
+{% endblock %}

@@ -134,7 +134,38 @@ final class NewsArticleBuilder
             if ($ce === null) {
                 continue;
             }
+            // List-Items wurden in Phase C als CHILDren einer LAYOUT_LIST
+            // identifiziert — ihre Texte landen ueber das LIST-Block selbst
+            // im listitems-Array, hier also skippen damit kein doppelter <p>.
+            if (!empty($b['listParentId'])) {
+                continue;
+            }
             $sorting += 128;
+
+            if ($ce === 'list') {
+                $items = $b['listItems'] ?? [];
+                if (!\is_array($items)) {
+                    $items = [];
+                }
+                $items = array_values(array_filter(array_map(
+                    static fn($s) => trim((string) $s),
+                    $items,
+                ), static fn(string $s) => $s !== ''));
+                if ($items === []) {
+                    continue;
+                }
+                $this->db->insert('tl_content', [
+                    'pid'       => $newsId,
+                    'ptable'    => 'tl_news',
+                    'sorting'   => $sorting,
+                    'tstamp'    => time(),
+                    'type'      => 'list',
+                    'listtype'  => 'unordered',
+                    'listitems' => serialize($items),
+                ]);
+                $blocksInserted++;
+                continue;
+            }
 
             if ($ce === 'headline') {
                 $unit = ($b['type'] ?? '') === 'LAYOUT_TITLE' ? 'h1' : 'h2';

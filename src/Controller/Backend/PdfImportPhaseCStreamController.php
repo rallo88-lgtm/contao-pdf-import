@@ -169,11 +169,50 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
 
                 // Build enriched blocks (gleiches Format wie Inspector run-data)
                 $blockMap = $result->getBlockMap();
+
+                // Pre-process: LAYOUT_LIST referenziert pro Item ein nested
+                // LAYOUT_TEXT (Textract liefert die Items doppelt — einmal als
+                // CHILDren der LIST, einmal parallel auf Top-Level). Wir
+                // markieren die Items mit listParentId und sammeln pro LIST
+                // die Items als String-Array, damit Phase E daraus ein
+                // tl_content type=list bauen kann statt doppelter <p>s.
+                $listMembership = [];          // text-block-id => list-block-id
+                $listItemsByListId = [];       // list-block-id => string[]
+                foreach ($result->getLayoutBlocks() as $b) {
+                    if (($b['BlockType'] ?? '') !== 'LAYOUT_LIST') {
+                        continue;
+                    }
+                    $listId = $b['Id'] ?? '';
+                    $items  = [];
+                    foreach ($b['Relationships'] ?? [] as $rel) {
+                        if (($rel['Type'] ?? '') !== 'CHILD') {
+                            continue;
+                        }
+                        foreach ($rel['Ids'] ?? [] as $cid) {
+                            $cb = $blockMap[$cid] ?? null;
+                            if ($cb === null) {
+                                continue;
+                            }
+                            // Kind-Texts können selbst LAYOUT_TEXTs sein (Magazin-Listen)
+                            // oder direkt LINE-Blocks. extract() handhabt beides.
+                            $itemText = $this->textExtractor->extract($cb, $blockMap);
+                            if ($itemText !== '') {
+                                $items[] = $itemText;
+                            }
+                            if (($cb['BlockType'] ?? '') === 'LAYOUT_TEXT') {
+                                $listMembership[$cid] = $listId;
+                            }
+                        }
+                    }
+                    $listItemsByListId[$listId] = $items;
+                }
+
                 $enriched = [];
                 foreach ($result->getLayoutBlocks() as $b) {
-                    $mapping    = $this->mapping->mapType($b['BlockType']);
-                    $enriched[] = [
-                        'id'           => $b['Id'] ?? '',
+                    $blockId = $b['Id'] ?? '';
+                    $mapping = $this->mapping->mapType($b['BlockType']);
+                    $entry   = [
+                        'id'           => $blockId,
                         'type'         => $b['BlockType'],
                         'typeShort'    => strtolower(str_replace('LAYOUT_', '', $b['BlockType'])),
                         'confidence'   => round((float) ($b['Confidence'] ?? 0), 1),
@@ -183,6 +222,13 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                         'mappingLabel' => $mapping['label'],
                         'color'        => $mapping['color'],
                     ];
+                    if (($b['BlockType'] ?? '') === 'LAYOUT_LIST') {
+                        $entry['listItems'] = $listItemsByListId[$blockId] ?? [];
+                    }
+                    if (isset($listMembership[$blockId])) {
+                        $entry['listParentId'] = $listMembership[$blockId];
+                    }
+                    $enriched[] = $entry;
                 }
 
                 $pagesData[(string) $pageNumber] = [
