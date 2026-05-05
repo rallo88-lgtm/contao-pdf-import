@@ -47,4 +47,21 @@ enum JobStatus: string
             || $this === self::Failed
             || $this === self::Cancelled;
     }
+
+    /**
+     * Bei welcher Phase-Route soll Resume einsteigen, abhaengig vom
+     * persistierten Job-State. Terminal-Stati liefern null (kein Resume).
+     */
+    public function resumeRoute(): ?string
+    {
+        return match ($this) {
+            self::Created, self::SplitDone => 'pdf_import_phase_b',
+            self::PagesSelected            => 'pdf_import_phase_c',
+            self::OcrDone                  => 'pdf_import_phase_d',
+            self::ConflictsResolved        => 'pdf_import_phase_e',
+            self::Completed,
+            self::Failed,
+            self::Cancelled                => null,
+        };
+    }
 }

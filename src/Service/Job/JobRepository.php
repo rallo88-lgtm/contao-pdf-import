@@ -68,9 +68,25 @@ final class JobRepository
         // SQL-Injection-Risk. Vermeidet Doctrine-DBAL-4-API-Drift bei
         // typed parameters (ParameterType::INTEGER vs PDO::PARAM_INT).
         $rows = $this->db->fetchAllAssociative(
-            sprintf('SELECT * FROM tl_pdf_import_job ORDER BY id DESC LIMIT %d', max(1, $limit)),
+            sprintf(
+                'SELECT * FROM tl_pdf_import_job WHERE deleted_at IS NULL ORDER BY id DESC LIMIT %d',
+                max(1, $limit),
+            ),
         );
         return array_map([Job::class, 'fromRow'], $rows);
+    }
+
+    /**
+     * Soft-Delete: setzt deleted_at, behaelt Row fuer Statistik. Idempotent —
+     * bereits geloeschte Jobs bleiben unveraendert.
+     */
+    public function softDelete(int $id): void
+    {
+        $now = time();
+        $this->db->executeStatement(
+            'UPDATE tl_pdf_import_job SET deleted_at = :now, tstamp = :now WHERE id = :id AND deleted_at IS NULL',
+            ['now' => $now, 'id' => $id],
+        );
     }
 
     /**

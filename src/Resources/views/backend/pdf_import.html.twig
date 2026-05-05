@@ -97,7 +97,17 @@
                             </td>
                             <td>
                                 <a href="{{ path('pdf_import_job', {'id': job.id}) }}" class="jobs-action">Details</a>
-                                <a href="#" class="jobs-action is-disabled" title="C3 — Resume folgt">Resume</a>
+                                {% set resumeRoute = job.status.resumeRoute %}
+                                {% if resumeRoute %}
+                                    <a href="{{ path(resumeRoute, {'id': job.id}) }}" class="jobs-action">Resume</a>
+                                {% else %}
+                                    <a href="#" class="jobs-action is-disabled" title="Status {{ job.status.label }} — kein Resume moeglich">Resume</a>
+                                {% endif %}
+                                <form method="POST" action="{{ path('pdf_import_job_delete') }}" data-turbo="false" style="display:inline" onsubmit="return confirm('Job #{{ job.id }} loeschen?\n\nSoft-Delete: Row bleibt fuer Statistik erhalten, verschwindet nur aus dieser Liste.')">
+                                    <input type="hidden" name="REQUEST_TOKEN" value="{{ request_token }}">
+                                    <input type="hidden" name="id" value="{{ job.id }}">
+                                    <button type="submit" class="jobs-action jobs-action--danger" title="Soft-Delete (Statistik bleibt)">Loeschen</button>
+                                </form>
                             </td>
                         </tr>
                     {% endfor %}

@@ -71,5 +71,8 @@ $GLOBALS['TL_DCA']['tl_pdf_import_job'] = [
         'payload' => [
             'sql' => "JSON DEFAULT NULL",
         ],
+        'deleted_at' => [
+            'sql' => "INT UNSIGNED DEFAULT NULL",
+        ],
     ],
 ];

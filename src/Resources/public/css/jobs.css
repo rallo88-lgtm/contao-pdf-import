@@ -122,6 +122,18 @@
     pointer-events: none;
 }
 
+.jobs-action--danger {
+    color: #b91c1c;
+    border-color: #fecaca;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.jobs-action--danger:hover {
+    background: #fef2f2;
+    border-color: #ef4444;
+}
+
 /* ============================================================
    Phase B — Page-Selector
    ============================================================ */

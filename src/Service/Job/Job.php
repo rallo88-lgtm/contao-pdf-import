@@ -18,6 +18,7 @@ final class Job
         public readonly ?string $detectedIssueNumber,
         public readonly ?string $detectedIssueDate,
         public readonly array $payload,
+        public readonly ?int $deletedAt = null,
     ) {}
 
     public static function fromRow(array $row): self
@@ -44,6 +45,7 @@ final class Job
             detectedIssueNumber: $row['detected_issue_number'] ?? null,
             detectedIssueDate:   $row['detected_issue_date'] ?? null,
             payload:             $payload ?? [],
+            deletedAt:           isset($row['deleted_at']) ? (int) $row['deleted_at'] : null,
         );
     }
 
