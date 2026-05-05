@@ -418,105 +418,124 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
     }
 
     /**
-     * Sortiert Layout-Blocks nach Reading-Order fuer Multi-Column-Pages
-     * (Magazin-Spalten). Textract liefert die Blocks oft Block-Type-
-     * gruppiert (alle FIGUREs zuerst, dann TEXTs spalten-weise) — das
-     * erzeugt im Newsreader-Output erst alle Bilder oben, dann alle
-     * Texte. Wir wollen aber: Spalte 1 komplett (Bild + Text + Liste),
-     * dann Spalte 2 komplett, etc.
+     * Sortiert Layout-Blocks nach Reading-Order fuer Magazin-Multi-Column-
+     * Pages. Trigger: 3 aufeinander folgende LAYOUT_FIGUREs mit distinkten
+     * left-Positionen (>=10% auseinander) — typisch fuer 3-Spalten-Sektionen
+     * mit Bild oben pro Spalte. Span beginnt bei der Triple und endet beim
+     * ersten Section-Anker (vollbreit-Block, naechste Triple, oder Block
+     * dessen left ausserhalb der Triple-Cluster liegt). Innerhalb des Spans:
+     * sortiere nach (column-index, top) damit Spalte fuer Spalte komplett
+     * gelesen wird (Bild + Headline + Liste + Text + Liste).
      *
-     * Algorithmus:
-     * 1. Cluster left-Positionen aller nicht-vollbreiten Blocks (Width <=0.5)
-     *    mit 5%-Toleranz. Cluster mit >=2 Members = echte Spalte.
-     * 2. Bei <2 Spalten: Original-Reihenfolge behalten.
-     * 3. Bei >=2 Spalten: Blocks in Sections splitten — vollbreite Blocks
-     *    (Width >0.5) und Outliers (left ausserhalb aller Cluster) sind
-     *    Section-Anker. Innerhalb jeder Section: usort nach (col, top).
+     * Bewusste Einschraenkung: nur 3-FIGURE-Triple triggert. 2-column-Layouts
+     * ohne klares Bild-Grid bleiben unsortiert (kein false-positive). Erweiterung
+     * folgt wenn mehr Magazin-Beispielseiten getestet sind.
      *
      * @param array<int, array> $blocks
      * @return array<int, array>
      */
     private function reorderForReadingOrder(array $blocks): array
     {
-        if (\count($blocks) < 4) {
+        $count = \count($blocks);
+        if ($count < 3) {
             return $blocks;
         }
 
-        // Schritt 1: left-Cluster ermitteln
-        $lefts = [];
-        foreach ($blocks as $b) {
+        $isFigure = static fn(array $b): bool => ($b['BlockType'] ?? '') === 'LAYOUT_FIGURE';
+        $leftOf   = static function (array $b): ?float {
             $bb = $b['Geometry']['BoundingBox'] ?? null;
-            if ($bb === null) {
-                continue;
-            }
-            if ((float) ($bb['Width'] ?? 0) > 0.5) {
-                continue;
-            }
-            $lefts[] = (float) ($bb['Left'] ?? 0);
-        }
-        sort($lefts);
+            return $bb !== null ? (float) ($bb['Left'] ?? 0) : null;
+        };
+        $widthOf = static function (array $b): float {
+            $bb = $b['Geometry']['BoundingBox'] ?? null;
+            return $bb !== null ? (float) ($bb['Width'] ?? 0) : 0.0;
+        };
 
-        $clusters = [];
-        foreach ($lefts as $l) {
-            $matchedIdx = -1;
-            foreach ($clusters as $i => $c) {
-                if (abs($c['center'] - $l) < 0.05) {
-                    $matchedIdx = $i;
+        // Phase 1: finde Triples = drei aufeinander folgende LAYOUT_FIGUREs
+        // mit distinkten left-Werten (paarweise >=10% auseinander).
+        $triples = [];
+        for ($i = 0; $i <= $count - 3; $i++) {
+            if (!$isFigure($blocks[$i]) || !$isFigure($blocks[$i + 1]) || !$isFigure($blocks[$i + 2])) {
+                continue;
+            }
+            $l0 = $leftOf($blocks[$i]);
+            $l1 = $leftOf($blocks[$i + 1]);
+            $l2 = $leftOf($blocks[$i + 2]);
+            if ($l0 === null || $l1 === null || $l2 === null) {
+                continue;
+            }
+            $sortedLefts = [$l0, $l1, $l2];
+            sort($sortedLefts);
+            if (($sortedLefts[1] - $sortedLefts[0]) < 0.1 || ($sortedLefts[2] - $sortedLefts[1]) < 0.1) {
+                continue;
+            }
+            $triples[$i] = $sortedLefts; // sortierte cluster-centers
+        }
+
+        if ($triples === []) {
+            return $blocks;
+        }
+
+        // Phase 2: pro Triple einen Span aufbauen (start..end exklusiv),
+        // der beim Section-Anker oder bei der naechsten Triple endet.
+        $spans = [];
+        foreach ($triples as $startIdx => $cols) {
+            $endIdx = $count;
+            for ($i = $startIdx + 3; $i < $count; $i++) {
+                if (isset($triples[$i])) {
+                    $endIdx = $i;
                     break;
                 }
+                $b = $blocks[$i];
+                if ($widthOf($b) > 0.5) {
+                    $endIdx = $i;
+                    break;
+                }
+                $l = $leftOf($b);
+                if ($l !== null) {
+                    $matches = false;
+                    foreach ($cols as $c) {
+                        if (abs($c - $l) < 0.05) {
+                            $matches = true;
+                            break;
+                        }
+                    }
+                    if (!$matches) {
+                        $endIdx = $i;
+                        break;
+                    }
+                }
             }
-            if ($matchedIdx !== -1) {
-                // running-average update + count
-                $c                       = $clusters[$matchedIdx];
-                $newCount                = $c['count'] + 1;
-                $clusters[$matchedIdx]   = [
-                    'center' => ($c['center'] * $c['count'] + $l) / $newCount,
-                    'count'  => $newCount,
-                ];
-            } else {
-                $clusters[] = ['center' => $l, 'count' => 1];
-            }
+            $spans[] = ['start' => $startIdx, 'end' => $endIdx, 'cols' => $cols];
         }
 
-        // Cluster mit >=2 Members = echte Spalte
-        $validCenters = [];
-        foreach ($clusters as $c) {
-            if ($c['count'] >= 2) {
-                $validCenters[] = $c['center'];
-            }
-        }
-        sort($validCenters);
-
-        if (\count($validCenters) < 2) {
-            return $blocks; // single-column oder unklare Struktur
-        }
-
-        // Schritt 2: column-index pro Block
-        $colOf = static function (array $b) use ($validCenters): int {
-            $bb = $b['Geometry']['BoundingBox'] ?? null;
-            if ($bb === null) {
-                return -1;
-            }
-            if ((float) ($bb['Width'] ?? 0) > 0.5) {
-                return -1; // vollbreit = Section-Anker
-            }
-            $left     = (float) ($bb['Left'] ?? 0);
-            $bestI    = -1;
+        // Phase 3: rebuild blocks. Ausserhalb von Spans bleibt Original-
+        // Reihenfolge, innerhalb wird nach (col-index, top) sortiert.
+        $colIndex = static function (float $left, array $cols): int {
+            $bestI    = 0;
             $bestDiff = 1.0;
-            foreach ($validCenters as $i => $c) {
+            foreach ($cols as $i => $c) {
                 $d = abs($c - $left);
                 if ($d < $bestDiff) {
                     $bestDiff = $d;
                     $bestI    = $i;
                 }
             }
-            return ($bestDiff < 0.05) ? $bestI : -1;
+            return $bestI;
         };
 
-        // Schritt 3: in Sections splitten und pro Section nach (col, top) sortieren
-        $sortSpan = static function (array $span) use ($colOf): array {
-            usort($span, static function (array $a, array $b) use ($colOf) {
-                $cmp = $colOf($a) <=> $colOf($b);
+        $reordered = [];
+        $cursor    = 0;
+        foreach ($spans as $span) {
+            while ($cursor < $span['start']) {
+                $reordered[] = $blocks[$cursor];
+                $cursor++;
+            }
+            $spanBlocks = \array_slice($blocks, $span['start'], $span['end'] - $span['start']);
+            usort($spanBlocks, static function (array $a, array $b) use ($colIndex, $span, $leftOf): int {
+                $aLeft = $leftOf($a) ?? 0.0;
+                $bLeft = $leftOf($b) ?? 0.0;
+                $cmp   = $colIndex($aLeft, $span['cols']) <=> $colIndex($bLeft, $span['cols']);
                 if ($cmp !== 0) {
                     return $cmp;
                 }
@@ -524,24 +543,14 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                 $bTop = (float) ($b['Geometry']['BoundingBox']['Top'] ?? 0);
                 return $aTop <=> $bTop;
             });
-            return $span;
-        };
-
-        $reordered    = [];
-        $currentSpan  = [];
-        foreach ($blocks as $b) {
-            if ($colOf($b) === -1) {
-                if ($currentSpan !== []) {
-                    $reordered    = array_merge($reordered, $sortSpan($currentSpan));
-                    $currentSpan = [];
-                }
+            foreach ($spanBlocks as $b) {
                 $reordered[] = $b;
-            } else {
-                $currentSpan[] = $b;
             }
+            $cursor = $span['end'];
         }
-        if ($currentSpan !== []) {
-            $reordered = array_merge($reordered, $sortSpan($currentSpan));
+        while ($cursor < $count) {
+            $reordered[] = $blocks[$cursor];
+            $cursor++;
         }
         return $reordered;
     }
