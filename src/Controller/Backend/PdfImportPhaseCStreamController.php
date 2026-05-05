@@ -246,12 +246,19 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                 }
 
                 // Multi-Column-Infografik-Detection: vollbreite LAYOUT_FIGURE
-                // mit interner WORD-Cluster-Struktur (>=3 Spalten je >=3 Members,
-                // paarweise >=10% Gap auf left-Position). Wird in Phase E in N
-                // Sub-Crops gesplittet und als tl_content type=gallery eingebaut,
-                // damit es auf Mobile <768px gestackt wird statt unleserlich klein.
-                $figureSubColumns = []; // figure-block-id => array<int, array{Left,Top,Width,Height}>
-                foreach ($layoutBlocks as $f) {
+                // mit interner WORD-Cluster-Struktur (>=2 Spalten in Headline-
+                // Streifen, paarweise >=10% Gap auf Headline-CENTER). Wird in
+                // Phase E in N Sub-Crops gesplittet und als tl_content
+                // type=gallery eingebaut, damit es auf Mobile <768px gestackt
+                // wird statt unleserlich klein.
+                //
+                // Schalter: ENV PDFIMPORT_DISABLE_MULTI_COL_SPLIT=1 deaktiviert
+                // die Detection komplett — fuer Edge-Cases wo die Heuristik
+                // falsch zuschneidet, kann der Re-Import dann wie vorher als
+                // EIN Bild laufen. .env.local + cache:clear nach Aenderung.
+                $multiColSplitDisabled = ((string) getenv('PDFIMPORT_DISABLE_MULTI_COL_SPLIT')) === '1';
+                $figureSubColumns      = []; // figure-block-id => array<int, array{Left,Top,Width,Height}>
+                foreach ($multiColSplitDisabled ? [] : $layoutBlocks as $f) {
                     if (($f['BlockType'] ?? '') !== 'LAYOUT_FIGURE') {
                         continue;
                     }

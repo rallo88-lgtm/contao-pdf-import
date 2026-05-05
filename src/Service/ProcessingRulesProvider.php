@@ -58,8 +58,8 @@ final class ProcessingRulesProvider
             ],
             [
                 'topic' => 'Multi-Column-Infografik-Split',
-                'rule'  => 'Vollbreite LAYOUT_FIGUREs (Width >0.5) deren WORD-Children in ≥3 distinkten left-Clustern liegen (je ≥3 Members, paarweise ≥10% Gap) werden in N Sub-Crops geteilt und als tl_content type=gallery eingebaut (multiSRC + perRow=N + cssClass="rct-infografik"). Caption gilt als gemeinsame Bildunterschrift fuer die Gesamtgrafik.',
-                'why'   => 'Magazin-Infografiken (z.B. 3 Donut-Charts nebeneinander) sind auf Mobile bei 100% Breite zu klein zum Lesen. Sub-Crops erlauben Desktop nahtlos nebeneinander (= sieht aus wie Original) und ab <768px gestackt (= jeder Sub-Crop voll lesbar).',
+                'rule'  => 'Vollbreite LAYOUT_FIGUREs (Width >0.5) deren oberste LINEs (Headline-Streifen, top < firstTop+0.02) in ≥2 distinkten Centern clustern (paarweise ≥10% Gap) werden in N Sub-Crops geteilt und als tl_content type=gallery eingebaut (multiSRC + perRow=N + cssID-Tupel mit "rct-infografik"). Crop-Boundaries via Mid zwischen Headline-CENTERS (nicht Lefts). Caption gilt als gemeinsame Bildunterschrift fuer die Gesamtgrafik. Schaltbar via ENV PDFIMPORT_DISABLE_MULTI_COL_SPLIT=1 (default off = Detection aktiv).',
+                'why'   => 'Magazin-Infografiken (z.B. 3 Donut-Charts nebeneinander) sind auf Mobile bei 100% Breite zu klein zum Lesen. Sub-Crops erlauben Desktop nahtlos nebeneinander (= sieht aus wie Original) und ab <768px gestackt (= jeder Sub-Crop voll lesbar). ENV-Toggle erlaubt Edge-Case-Fallback ohne Code-Change.',
             ],
             [
                 'topic' => 'Soft-Delete für Jobs',
