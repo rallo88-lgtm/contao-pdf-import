@@ -64,10 +64,18 @@ final class NewsArticleBuilder
         }
 
         $issueNum = $job->detectedIssueNumber;
-        $headline = sprintf('MBJ-%s Seite %d', $issueNum, $pageNumber);
+        $headline = NewsConflictChecker::deterministicHeadline($issueNum, $pageNumber);
         $date     = NewsConflictChecker::deterministicDate((int) $issueNum, $pageNumber);
         $time     = $pageNumber;
         $teaser   = sprintf('MBJ Ausgabe %s, Seite %d', $issueNum, $pageNumber);
+        // PERMANENT TRACE — entfernen wenn date-Bug endgueltig geklaert
+        error_log(sprintf(
+            '[PDFIMPORT] buildPage page=%d issueNum=%s date=%d time=%d ncc_file=%s ncc_mtime=%d nab_file=%s',
+            $pageNumber, $issueNum, $date, $time,
+            (new \ReflectionClass(NewsConflictChecker::class))->getFileName(),
+            filemtime((new \ReflectionClass(NewsConflictChecker::class))->getFileName()),
+            __FILE__,
+        ));
 
         // Existing-Check (sollte mit decision konsistent sein)
         $existing = $decision === 'replace'
