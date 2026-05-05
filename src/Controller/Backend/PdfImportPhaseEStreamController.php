@@ -111,20 +111,6 @@ class PdfImportPhaseEStreamController extends AbstractBackendController
                     $this->db->beginTransaction();
                     $r = $this->builder->buildPage($job, $pageNumber, $decision);
                     $this->db->commit();
-                    // PERMANENT TRACE — date-Bug post-commit Snapshot
-                    if (($r['news_id'] ?? 0) > 0) {
-                        try {
-                            $row = $this->db->fetchAssociative('SELECT date, time FROM tl_news WHERE id=?', [$r['news_id']]);
-                            error_log(sprintf(
-                                '[PDFIMPORT] post-commit news_id=%d db_date=%s db_time=%s',
-                                $r['news_id'],
-                                $row === false ? 'null' : (string) ($row['date'] ?? 'null'),
-                                $row === false ? 'null' : (string) ($row['time'] ?? 'null'),
-                            ));
-                        } catch (\Throwable) {
-                            // ignore
-                        }
-                    }
 
                     if ($r['action'] === 'replaced') {
                         $totals['replaced']++;

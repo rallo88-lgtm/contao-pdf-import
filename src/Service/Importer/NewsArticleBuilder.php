@@ -13,8 +13,10 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * Build-Logik fuer eine einzelne tl_news + ihre tl_content-Children
  * pro Page. Per Default:
  * - headline = "MBJ-{nr} Seite {pageNr}", alias = sanitized + tstamp,
- *   date = mktime+nr*1000+pageNr (deterministic), time = pageNr,
- *   published = 0 (Bettina prueft via FE-Reader-Vorschau).
+ *   date = IssueDateParser(detectedIssueDate) ?? deterministicDate
+ *   (Sortier-Fallback), time = date + pageNr*60 (Page-Index als
+ *   sichtbare Minute im BE), published = 0 (Bettina prueft via
+ *   FE-Reader-Vorschau).
  * - Block-Mapping: mappingCe='headline' -> tl_content type=headline mit
  *   unit=h1 (LAYOUT_TITLE) oder h2 (LAYOUT_SECTION_HEADER); 'text' ->
  *   type=text mit <p>nl2br($text)</p>; 'image' (FIGURE/TABLE) -> crop +
@@ -75,14 +77,6 @@ final class NewsArticleBuilder
         // Page 1 -> 00:01, Page 2 -> 00:02, ... (statt allen "00:00" mit Sub-Minuten-Diff)
         $time     = $date + ($pageNumber * 60);
         $teaser   = sprintf('MBJ Ausgabe %s, Seite %d', $issueNum, $pageNumber);
-        // PERMANENT TRACE — entfernen wenn date-Bug endgueltig geklaert
-        error_log(sprintf(
-            '[PDFIMPORT] buildPage page=%d issueNum=%s date=%d time=%d ncc_file=%s ncc_mtime=%d nab_file=%s',
-            $pageNumber, $issueNum, $date, $time,
-            (new \ReflectionClass(NewsConflictChecker::class))->getFileName(),
-            filemtime((new \ReflectionClass(NewsConflictChecker::class))->getFileName()),
-            __FILE__,
-        ));
 
         // Existing-Check (sollte mit decision konsistent sein)
         $existing = $decision === 'replace'
@@ -108,7 +102,6 @@ final class NewsArticleBuilder
                 'teaser'    => $teaser,
                 'published' => 0,
             ], ['id' => $newsId]);
-            $this->traceDateBug($newsId, $date, $time, 'after-update');
             $action = 'replaced';
         } else {
             $alias = $this->buildAlias($issueNum, $pageNumber);
@@ -124,7 +117,6 @@ final class NewsArticleBuilder
                 'published' => 0,
             ]);
             $newsId = (int) $this->db->lastInsertId();
-            $this->traceDateBug($newsId, $date, $time, 'after-insert');
             $action = 'created';
         }
 
@@ -223,23 +215,5 @@ final class NewsArticleBuilder
     {
         // Vorlage-Pattern: timestamp-suffix garantiert Uniqueness ohne extra check.
         return sprintf('mbj-%s-seite-%d-%d', $issueNumber, $pageNumber, time());
-    }
-
-    private function traceDateBug(int $newsId, int $sentDate, int $sentTime, string $stage): void
-    {
-        try {
-            $row = $this->db->fetchAssociative('SELECT date, time FROM tl_news WHERE id=?', [$newsId]);
-            error_log(sprintf(
-                '[PDFIMPORT] %s news_id=%d sent_date=%d sent_time=%d db_date=%s db_time=%s',
-                $stage,
-                $newsId,
-                $sentDate,
-                $sentTime,
-                $row === false ? 'null' : (string) ($row['date'] ?? 'null'),
-                $row === false ? 'null' : (string) ($row['time'] ?? 'null'),
-            ));
-        } catch (\Throwable $e) {
-            error_log('[PDFIMPORT] traceDateBug-FAIL: ' . $e->getMessage());
-        }
     }
 }
