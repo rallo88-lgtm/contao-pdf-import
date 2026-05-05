@@ -3,6 +3,7 @@
 namespace Rallo\ContaoPdfImport\Service\Importer;
 
 use Doctrine\DBAL\Connection;
+use Rallo\ContaoPdfImport\Service\IssueDateParser;
 use Rallo\ContaoPdfImport\Service\Job\Job;
 use Rallo\ContaoPdfImport\Service\Job\JobFilesystem;
 use Rallo\ContaoPdfImport\Service\NewsConflictChecker;
@@ -34,6 +35,7 @@ final class NewsArticleBuilder
         private readonly FilesIndex $filesIndex,
         private readonly FigureCropper $cropper,
         private readonly NewsConflictChecker $conflicts,
+        private readonly IssueDateParser $issueDateParser,
         #[Autowire(param: 'kernel.project_dir')] private readonly string $projectDir,
     ) {}
 
@@ -65,8 +67,13 @@ final class NewsArticleBuilder
 
         $issueNum = $job->detectedIssueNumber;
         $headline = NewsConflictChecker::deterministicHeadline($issueNum, $pageNumber);
-        $date     = NewsConflictChecker::deterministicDate((int) $issueNum, $pageNumber);
-        $time     = $pageNumber;
+        // Echtes Datum aus Klammer-Erkennung (z.B. "Maerz 2026" -> Monatsanfang),
+        // sonst deterministicDate als Sortier-Fallback.
+        $realDate = $this->issueDateParser->parse($job->detectedIssueDate);
+        $date     = $realDate ?? NewsConflictChecker::deterministicDate((int) $issueNum, $pageNumber);
+        // Page-Index als Minuten-Offset, damit BE-Anzeige Page-Reihenfolge zeigt:
+        // Page 1 -> 00:01, Page 2 -> 00:02, ... (statt allen "00:00" mit Sub-Minuten-Diff)
+        $time     = $date + ($pageNumber * 60);
         $teaser   = sprintf('MBJ Ausgabe %s, Seite %d', $issueNum, $pageNumber);
         // PERMANENT TRACE — entfernen wenn date-Bug endgueltig geklaert
         error_log(sprintf(
