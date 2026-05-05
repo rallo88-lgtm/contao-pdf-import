@@ -140,6 +140,12 @@ final class NewsArticleBuilder
             if (!empty($b['listParentId'])) {
                 continue;
             }
+            // Caption-Texte wurden ihrer LAYOUT_FIGURE als 'caption'
+            // zugeordnet (Phase-C-Heuristik) und landen im Image-CE
+            // caption-Feld — hier skippen damit kein eigener <p>.
+            if (!empty($b['captionParentId'])) {
+                continue;
+            }
             $sorting += 128;
 
             if ($ce === 'list') {
@@ -221,6 +227,7 @@ final class NewsArticleBuilder
 
                 $fileUuid = $this->filesIndex->registerFile($relPath, 'jpg', $folderUuid);
 
+                $caption = trim((string) ($b['caption'] ?? ''));
                 $this->db->insert('tl_content', [
                     'pid'       => $newsId,
                     'ptable'    => 'tl_news',
@@ -228,6 +235,7 @@ final class NewsArticleBuilder
                     'tstamp'    => time(),
                     'type'      => 'image',
                     'singleSRC' => $fileUuid,
+                    'caption'   => $caption,
                 ]);
                 $blocksInserted++;
                 $imagesCropped++;

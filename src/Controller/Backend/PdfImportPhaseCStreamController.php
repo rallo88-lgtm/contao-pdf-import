@@ -176,9 +176,71 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                 // markieren die Items mit listParentId und sammeln pro LIST
                 // die Items als String-Array, damit Phase E daraus ein
                 // tl_content type=list bauen kann statt doppelter <p>s.
+                $layoutBlocks = $result->getLayoutBlocks();
+
+                // Caption-Heuristik: pro LAYOUT_FIGURE finde den ersten
+                // LAYOUT_TEXT direkt darunter (vertikal <5% Diff), klein
+                // (Hoehe <6%, max ~3 Zeilen) und horizontal innerhalb der
+                // Figure-Bounds (mit 2% Tolerance). Eindeutige 1:1-Zuordnung,
+                // ein Text wird hoechstens einer Figure als Caption zugewiesen.
+                $captionMembership = [];     // text-block-id => figure-block-id
+                $captionByFigureId = [];     // figure-block-id => string
+                foreach ($layoutBlocks as $f) {
+                    if (($f['BlockType'] ?? '') !== 'LAYOUT_FIGURE') {
+                        continue;
+                    }
+                    $fbb = $f['Geometry']['BoundingBox'] ?? null;
+                    if ($fbb === null) {
+                        continue;
+                    }
+                    $figureId = $f['Id'] ?? '';
+                    $fBottom  = (float) $fbb['Top'] + (float) $fbb['Height'];
+                    $fLeft    = (float) $fbb['Left'];
+                    $fRight   = $fLeft + (float) $fbb['Width'];
+
+                    $best        = null;
+                    $bestTextTop = null;
+                    foreach ($layoutBlocks as $t) {
+                        if (($t['BlockType'] ?? '') !== 'LAYOUT_TEXT') {
+                            continue;
+                        }
+                        $tId = $t['Id'] ?? '';
+                        if (isset($captionMembership[$tId])) {
+                            continue; // bereits als Caption einer anderen Figure verbraucht
+                        }
+                        $tbb = $t['Geometry']['BoundingBox'] ?? null;
+                        if ($tbb === null) {
+                            continue;
+                        }
+                        $tTop    = (float) $tbb['Top'];
+                        $tHeight = (float) $tbb['Height'];
+                        $tLeft   = (float) $tbb['Left'];
+                        $tRight  = $tLeft + (float) $tbb['Width'];
+
+                        if ($tTop < $fBottom || $tTop - $fBottom > 0.05) {
+                            continue;
+                        }
+                        if ($tHeight > 0.06) {
+                            continue;
+                        }
+                        if ($tLeft < $fLeft - 0.02 || $tRight > $fRight + 0.02) {
+                            continue;
+                        }
+                        if ($bestTextTop === null || $tTop < $bestTextTop) {
+                            $best        = $t;
+                            $bestTextTop = $tTop;
+                        }
+                    }
+                    if ($best !== null) {
+                        $bestId                       = $best['Id'] ?? '';
+                        $captionMembership[$bestId]   = $figureId;
+                        $captionByFigureId[$figureId] = $this->textExtractor->extract($best, $blockMap);
+                    }
+                }
+
                 $listMembership = [];          // text-block-id => list-block-id
                 $listItemsByListId = [];       // list-block-id => string[]
-                foreach ($result->getLayoutBlocks() as $b) {
+                foreach ($layoutBlocks as $b) {
                     if (($b['BlockType'] ?? '') !== 'LAYOUT_LIST') {
                         continue;
                     }
@@ -208,7 +270,7 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                 }
 
                 $enriched = [];
-                foreach ($result->getLayoutBlocks() as $b) {
+                foreach ($layoutBlocks as $b) {
                     $blockId = $b['Id'] ?? '';
                     $mapping = $this->mapping->mapType($b['BlockType']);
                     $entry   = [
@@ -225,8 +287,14 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                     if (($b['BlockType'] ?? '') === 'LAYOUT_LIST') {
                         $entry['listItems'] = $listItemsByListId[$blockId] ?? [];
                     }
+                    if (($b['BlockType'] ?? '') === 'LAYOUT_FIGURE' && isset($captionByFigureId[$blockId])) {
+                        $entry['caption'] = $captionByFigureId[$blockId];
+                    }
                     if (isset($listMembership[$blockId])) {
                         $entry['listParentId'] = $listMembership[$blockId];
+                    }
+                    if (isset($captionMembership[$blockId])) {
+                        $entry['captionParentId'] = $captionMembership[$blockId];
                     }
                     $enriched[] = $entry;
                 }
