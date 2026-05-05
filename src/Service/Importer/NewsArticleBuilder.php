@@ -215,6 +215,44 @@ final class NewsArticleBuilder
                     continue;
                 }
                 $typeShort = $b['typeShort'] ?? 'image';
+                $sourcePagePath = $this->jobFs->getPagePath($job->id, $pageNumber);
+                $caption        = trim((string) ($b['caption'] ?? ''));
+                $subColumns     = $b['subColumns'] ?? null;
+
+                if (\is_array($subColumns) && \count($subColumns) >= 2) {
+                    // Multi-Column-Infografik -> N Sub-Crops + tl_content
+                    // type=gallery. Ein gemeinsames caption-Feld gilt fuer
+                    // die Gesamtgrafik, CSS-Klasse rct-infografik triggert
+                    // im rct-bundle das responsive Grid (Desktop nahtlos
+                    // nebeneinander, Mobile <768px gestackt).
+                    $imageSeqByType[$typeShort] = ($imageSeqByType[$typeShort] ?? 0) + 1;
+                    $seq                        = $imageSeqByType[$typeShort];
+                    $uuids                      = [];
+                    foreach ($subColumns as $idx => $subBox) {
+                        $filename = sprintf('page-%d-%s-%d-col-%d.jpg', $pageNumber, $typeShort, $seq, $idx + 1);
+                        $relPath  = $imageRelDir . '/' . $filename;
+                        $absPath  = $this->projectDir . '/' . $relPath;
+                        $this->cropper->crop($sourcePagePath, $subBox, $absPath);
+                        $uuids[]  = $this->filesIndex->registerFile($relPath, 'jpg', $folderUuid);
+                        $imagesCropped++;
+                    }
+                    $this->db->insert('tl_content', [
+                        'pid'      => $newsId,
+                        'ptable'   => 'tl_news',
+                        'sorting'  => $sorting,
+                        'tstamp'   => time(),
+                        'type'     => 'gallery',
+                        'multiSRC' => serialize($uuids),
+                        'orderSRC' => serialize($uuids),
+                        'sortBy'   => 'custom',
+                        'perRow'   => \count($uuids),
+                        'caption'  => $caption,
+                        'cssClass' => 'rct-infografik',
+                    ]);
+                    $blocksInserted++;
+                    continue;
+                }
+
                 $imageSeqByType[$typeShort] = ($imageSeqByType[$typeShort] ?? 0) + 1;
                 $seq = $imageSeqByType[$typeShort];
 
@@ -222,12 +260,10 @@ final class NewsArticleBuilder
                 $relPath  = $imageRelDir . '/' . $filename;
                 $absPath  = $this->projectDir . '/' . $relPath;
 
-                $sourcePagePath = $this->jobFs->getPagePath($job->id, $pageNumber);
                 $this->cropper->crop($sourcePagePath, $box, $absPath);
 
                 $fileUuid = $this->filesIndex->registerFile($relPath, 'jpg', $folderUuid);
 
-                $caption = trim((string) ($b['caption'] ?? ''));
                 $this->db->insert('tl_content', [
                     'pid'       => $newsId,
                     'ptable'    => 'tl_news',

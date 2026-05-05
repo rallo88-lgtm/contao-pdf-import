@@ -245,6 +245,90 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                     }
                 }
 
+                // Multi-Column-Infografik-Detection: vollbreite LAYOUT_FIGURE
+                // mit interner WORD-Cluster-Struktur (>=3 Spalten je >=3 Members,
+                // paarweise >=10% Gap auf left-Position). Wird in Phase E in N
+                // Sub-Crops gesplittet und als tl_content type=gallery eingebaut,
+                // damit es auf Mobile <768px gestackt wird statt unleserlich klein.
+                $figureSubColumns = []; // figure-block-id => array<int, array{Left,Top,Width,Height}>
+                foreach ($layoutBlocks as $f) {
+                    if (($f['BlockType'] ?? '') !== 'LAYOUT_FIGURE') {
+                        continue;
+                    }
+                    $fbb = $f['Geometry']['BoundingBox'] ?? null;
+                    if ($fbb === null) {
+                        continue;
+                    }
+                    if ((float) ($fbb['Width'] ?? 0) < 0.5) {
+                        continue; // nur vollbreite Figures sind Multi-Column-Kandidaten
+                    }
+                    // Sammle alle CHILD-Lefts (LINE/WORD-Granularitaet)
+                    $childLefts = [];
+                    foreach ($f['Relationships'] ?? [] as $rel) {
+                        if (($rel['Type'] ?? '') !== 'CHILD') {
+                            continue;
+                        }
+                        foreach ($rel['Ids'] ?? [] as $cid) {
+                            $cb = $blockMap[$cid] ?? null;
+                            $cbb = $cb['Geometry']['BoundingBox'] ?? null;
+                            if ($cbb === null) {
+                                continue;
+                            }
+                            $childLefts[] = (float) ($cbb['Left'] ?? 0);
+                        }
+                    }
+                    if (\count($childLefts) < 9) {
+                        continue;
+                    }
+                    sort($childLefts);
+                    // Cluster mit 5%-Toleranz (Adjacent-Diff)
+                    $clusters    = [[$childLefts[0]]];
+                    $lastCluster = 0;
+                    for ($i = 1; $i < \count($childLefts); $i++) {
+                        if ($childLefts[$i] - end($clusters[$lastCluster]) < 0.05) {
+                            $clusters[$lastCluster][] = $childLefts[$i];
+                        } else {
+                            $clusters[] = [$childLefts[$i]];
+                            $lastCluster++;
+                        }
+                    }
+                    // Cluster mit >=3 Members behalten
+                    $validClusters = array_values(array_filter($clusters, static fn(array $c) => \count($c) >= 3));
+                    if (\count($validClusters) < 3) {
+                        continue;
+                    }
+                    // Paarweise >=10% Gap auf Cluster-Mitten
+                    $mids = array_map(static fn(array $c) => array_sum($c) / \count($c), $validClusters);
+                    sort($mids);
+                    $valid = true;
+                    for ($i = 1; $i < \count($mids); $i++) {
+                        if ($mids[$i] - $mids[$i - 1] < 0.10) {
+                            $valid = false;
+                            break;
+                        }
+                    }
+                    if (!$valid) {
+                        continue;
+                    }
+                    // Crop-Boundaries: Figure-Edges + Mittelpunkte zwischen Cluster-Centers
+                    $boundaries = [(float) $fbb['Left']];
+                    for ($i = 1; $i < \count($mids); $i++) {
+                        $boundaries[] = ($mids[$i - 1] + $mids[$i]) / 2;
+                    }
+                    $boundaries[] = (float) $fbb['Left'] + (float) $fbb['Width'];
+
+                    $subs = [];
+                    for ($i = 0; $i < \count($boundaries) - 1; $i++) {
+                        $subs[] = [
+                            'Left'   => $boundaries[$i],
+                            'Top'    => (float) $fbb['Top'],
+                            'Width'  => $boundaries[$i + 1] - $boundaries[$i],
+                            'Height' => (float) $fbb['Height'],
+                        ];
+                    }
+                    $figureSubColumns[$f['Id'] ?? ''] = $subs;
+                }
+
                 $listMembership = [];          // text-block-id => list-block-id
                 $listItemsByListId = [];       // list-block-id => string[]
                 foreach ($layoutBlocks as $b) {
@@ -296,6 +380,9 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                     }
                     if (($b['BlockType'] ?? '') === 'LAYOUT_FIGURE' && isset($captionByFigureId[$blockId])) {
                         $entry['caption'] = $captionByFigureId[$blockId];
+                    }
+                    if (($b['BlockType'] ?? '') === 'LAYOUT_FIGURE' && isset($figureSubColumns[$blockId])) {
+                        $entry['subColumns'] = $figureSubColumns[$blockId];
                     }
                     if (isset($listMembership[$blockId])) {
                         $entry['listParentId'] = $listMembership[$blockId];

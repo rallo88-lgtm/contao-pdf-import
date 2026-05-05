@@ -57,6 +57,11 @@ final class ProcessingRulesProvider
                 'why'   => 'Kleine Bilder (Icons, QR-Codes) bleiben in intrinsic Crop-Größe, nur grosse Diagramme werden auf Container-Breite gekappt.',
             ],
             [
+                'topic' => 'Multi-Column-Infografik-Split',
+                'rule'  => 'Vollbreite LAYOUT_FIGUREs (Width >0.5) deren WORD-Children in ≥3 distinkten left-Clustern liegen (je ≥3 Members, paarweise ≥10% Gap) werden in N Sub-Crops geteilt und als tl_content type=gallery eingebaut (multiSRC + perRow=N + cssClass="rct-infografik"). Caption gilt als gemeinsame Bildunterschrift fuer die Gesamtgrafik.',
+                'why'   => 'Magazin-Infografiken (z.B. 3 Donut-Charts nebeneinander) sind auf Mobile bei 100% Breite zu klein zum Lesen. Sub-Crops erlauben Desktop nahtlos nebeneinander (= sieht aus wie Original) und ab <768px gestackt (= jeder Sub-Crop voll lesbar).',
+            ],
+            [
                 'topic' => 'Soft-Delete für Jobs',
                 'rule'  => 'tl_pdf_import_job.deleted_at IS NULL filtert das Listing. Stats lesen aus tl_pdf_import_event und sind unbeeinflusst.',
                 'why'   => 'Statistik-Ground-Truth (Token-Verbrauch, Phase-Durations) bleibt vollstaendig erhalten, Listing aber aufgeräumt.',
