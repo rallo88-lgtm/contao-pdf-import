@@ -50,6 +50,58 @@
             </fieldset>
 
             <fieldset class="tl_box" style="margin-top:1.5em">
+                <legend>Verarbeitungs-Regeln (Phase C / Phase E)</legend>
+                <p class="tl_help" style="margin-bottom:8px">
+                    Was zwischen Textract-Output und tl_news/tl_content-Insert passiert.
+                    Heuristiken, Match-Keys, Reading-Order. Aktuell hardcoded;
+                    Phase 4 macht sie konfigurierbar.
+                </p>
+                <table class="tl_listing" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th class="tl_folder_tlist" style="width:200px">Thema</th>
+                            <th class="tl_folder_tlist">Regel</th>
+                            <th class="tl_folder_tlist" style="width:35%">Warum</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in processingRules %}
+                            <tr class="{{ loop.index is odd ? 'odd' : 'even' }}">
+                                <td class="tl_file_list"><strong>{{ r.topic }}</strong></td>
+                                <td class="tl_file_list" style="line-height:1.45">{{ r.rule }}</td>
+                                <td class="tl_file_list" style="line-height:1.45; color:var(--text-muted, #666); font-style:italic">{{ r.why }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </fieldset>
+
+            <fieldset class="tl_box" style="margin-top:1.5em">
+                <legend>Hinweise fuer den PDF-Workflow (Bettina-Regeln)</legend>
+                <p class="tl_help" style="margin-bottom:8px">
+                    Was beim PDF-Layout zu beachten ist damit der Auto-Import sauber laeuft.
+                    Best-Practice-Empfehlungen — keine Code-Regeln, sondern redaktionelle
+                    Konventionen.
+                </p>
+                <table class="tl_listing" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th class="tl_folder_tlist" style="width:240px">Hinweis</th>
+                            <th class="tl_folder_tlist">Was tun</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for h in editorialHints %}
+                            <tr class="{{ loop.index is odd ? 'odd' : 'even' }}">
+                                <td class="tl_file_list"><strong>{{ h.topic }}</strong></td>
+                                <td class="tl_file_list" style="line-height:1.45">{{ h.rule }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </fieldset>
+
+            <fieldset class="tl_box" style="margin-top:1.5em">
                 <legend>Geplante Konfigurations-Stufen (Phase 4)</legend>
                 <table class="tl_listing" style="width:100%">
                     <thead>
