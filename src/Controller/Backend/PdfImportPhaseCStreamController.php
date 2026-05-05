@@ -178,6 +178,13 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                 // tl_content type=list bauen kann statt doppelter <p>s.
                 $layoutBlocks = $result->getLayoutBlocks();
 
+                // Reading-Order-Reorder: Multi-Column-Layouts (Magazin)
+                // erkennen via Cluster-Count auf left-Position und Blocks
+                // spalten-weise neu sortieren. Vollbreite Blocks (Width >0.5
+                // oder ausserhalb der Cluster) sind Section-Anker, die
+                // bleiben in ihrer Top-Position und unterbrechen die Span.
+                $layoutBlocks = $this->reorderForReadingOrder($layoutBlocks);
+
                 // Caption-Heuristik: pro LAYOUT_FIGURE finde den ersten
                 // LAYOUT_TEXT direkt darunter (vertikal <5% Diff), klein
                 // (Hoehe <6%, max ~3 Zeilen) und horizontal innerhalb der
@@ -408,5 +415,134 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
     {
         $pos = strrpos($fqn, '\\');
         return $pos !== false ? substr($fqn, $pos + 1) : $fqn;
+    }
+
+    /**
+     * Sortiert Layout-Blocks nach Reading-Order fuer Multi-Column-Pages
+     * (Magazin-Spalten). Textract liefert die Blocks oft Block-Type-
+     * gruppiert (alle FIGUREs zuerst, dann TEXTs spalten-weise) — das
+     * erzeugt im Newsreader-Output erst alle Bilder oben, dann alle
+     * Texte. Wir wollen aber: Spalte 1 komplett (Bild + Text + Liste),
+     * dann Spalte 2 komplett, etc.
+     *
+     * Algorithmus:
+     * 1. Cluster left-Positionen aller nicht-vollbreiten Blocks (Width <=0.5)
+     *    mit 5%-Toleranz. Cluster mit >=2 Members = echte Spalte.
+     * 2. Bei <2 Spalten: Original-Reihenfolge behalten.
+     * 3. Bei >=2 Spalten: Blocks in Sections splitten — vollbreite Blocks
+     *    (Width >0.5) und Outliers (left ausserhalb aller Cluster) sind
+     *    Section-Anker. Innerhalb jeder Section: usort nach (col, top).
+     *
+     * @param array<int, array> $blocks
+     * @return array<int, array>
+     */
+    private function reorderForReadingOrder(array $blocks): array
+    {
+        if (\count($blocks) < 4) {
+            return $blocks;
+        }
+
+        // Schritt 1: left-Cluster ermitteln
+        $lefts = [];
+        foreach ($blocks as $b) {
+            $bb = $b['Geometry']['BoundingBox'] ?? null;
+            if ($bb === null) {
+                continue;
+            }
+            if ((float) ($bb['Width'] ?? 0) > 0.5) {
+                continue;
+            }
+            $lefts[] = (float) ($bb['Left'] ?? 0);
+        }
+        sort($lefts);
+
+        $clusters = [];
+        foreach ($lefts as $l) {
+            $matchedIdx = -1;
+            foreach ($clusters as $i => $c) {
+                if (abs($c['center'] - $l) < 0.05) {
+                    $matchedIdx = $i;
+                    break;
+                }
+            }
+            if ($matchedIdx !== -1) {
+                // running-average update + count
+                $c                       = $clusters[$matchedIdx];
+                $newCount                = $c['count'] + 1;
+                $clusters[$matchedIdx]   = [
+                    'center' => ($c['center'] * $c['count'] + $l) / $newCount,
+                    'count'  => $newCount,
+                ];
+            } else {
+                $clusters[] = ['center' => $l, 'count' => 1];
+            }
+        }
+
+        // Cluster mit >=2 Members = echte Spalte
+        $validCenters = [];
+        foreach ($clusters as $c) {
+            if ($c['count'] >= 2) {
+                $validCenters[] = $c['center'];
+            }
+        }
+        sort($validCenters);
+
+        if (\count($validCenters) < 2) {
+            return $blocks; // single-column oder unklare Struktur
+        }
+
+        // Schritt 2: column-index pro Block
+        $colOf = static function (array $b) use ($validCenters): int {
+            $bb = $b['Geometry']['BoundingBox'] ?? null;
+            if ($bb === null) {
+                return -1;
+            }
+            if ((float) ($bb['Width'] ?? 0) > 0.5) {
+                return -1; // vollbreit = Section-Anker
+            }
+            $left     = (float) ($bb['Left'] ?? 0);
+            $bestI    = -1;
+            $bestDiff = 1.0;
+            foreach ($validCenters as $i => $c) {
+                $d = abs($c - $left);
+                if ($d < $bestDiff) {
+                    $bestDiff = $d;
+                    $bestI    = $i;
+                }
+            }
+            return ($bestDiff < 0.05) ? $bestI : -1;
+        };
+
+        // Schritt 3: in Sections splitten und pro Section nach (col, top) sortieren
+        $sortSpan = static function (array $span) use ($colOf): array {
+            usort($span, static function (array $a, array $b) use ($colOf) {
+                $cmp = $colOf($a) <=> $colOf($b);
+                if ($cmp !== 0) {
+                    return $cmp;
+                }
+                $aTop = (float) ($a['Geometry']['BoundingBox']['Top'] ?? 0);
+                $bTop = (float) ($b['Geometry']['BoundingBox']['Top'] ?? 0);
+                return $aTop <=> $bTop;
+            });
+            return $span;
+        };
+
+        $reordered    = [];
+        $currentSpan  = [];
+        foreach ($blocks as $b) {
+            if ($colOf($b) === -1) {
+                if ($currentSpan !== []) {
+                    $reordered    = array_merge($reordered, $sortSpan($currentSpan));
+                    $currentSpan = [];
+                }
+                $reordered[] = $b;
+            } else {
+                $currentSpan[] = $b;
+            }
+        }
+        if ($currentSpan !== []) {
+            $reordered = array_merge($reordered, $sortSpan($currentSpan));
+        }
+        return $reordered;
     }
 }
