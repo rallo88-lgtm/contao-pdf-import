@@ -358,15 +358,39 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                     if (!$valid) {
                         continue;
                     }
-                    // Crop-Boundaries: Figure-Edges + Mittelpunkte im Whitespace
-                    // zwischen rechter Kante von Cluster i und linker Kante von
-                    // Cluster i+1 — trifft den echten Spalten-Trenner auch wenn
-                    // Headlines links-buendig sitzen statt mittig in der Spalte.
-                    $boundaries = [(float) $fbb['Left']];
-                    for ($i = 1; $i < \count($clusterMeta); $i++) {
-                        $boundaries[] = ($clusterMeta[$i - 1]['maxRight'] + $clusterMeta[$i]['minLeft']) / 2;
+                    // Crop-Boundaries — Auto-Detect zwischen zwei Layout-Typen:
+                    //   (a) gleich breite Spalten + Headlines zentriert pro Spalte
+                    //       (typisches Donut-Triple-Layout) → FIGURE-N-tel
+                    //   (b) ungleich breite Spalten oder linksbuendige Headlines
+                    //       → Edge-Mid (Mittelpunkt im Whitespace zwischen
+                    //       maxRight von Cluster i und minLeft von Cluster i+1)
+                    //
+                    // Detection: bei (a) liegen die Cluster-Centers nahe an den
+                    // Mitten der gleich breiten Erwartung (figLeft + figWidth ×
+                    // (i+0.5)/N). Schwelle 2.5% trennt die Faelle sauber:
+                    // Page-1-Bsp 0.9% Devation, Page-3-Bsp 5.6% Devation.
+                    $figLeft   = (float) $fbb['Left'];
+                    $figWidth  = (float) $fbb['Width'];
+                    $nClusters = \count($clusterMeta);
+
+                    $maxDeviation = 0.0;
+                    for ($i = 0; $i < $nClusters; $i++) {
+                        $expected     = $figLeft + $figWidth * ($i + 0.5) / $nClusters;
+                        $maxDeviation = max($maxDeviation, abs($clusterMeta[$i]['center'] - $expected));
                     }
-                    $boundaries[] = (float) $fbb['Left'] + (float) $fbb['Width'];
+                    $evenLayout = $maxDeviation < 0.025;
+
+                    $boundaries = [$figLeft];
+                    if ($evenLayout) {
+                        for ($i = 1; $i < $nClusters; $i++) {
+                            $boundaries[] = $figLeft + $figWidth * $i / $nClusters;
+                        }
+                    } else {
+                        for ($i = 1; $i < $nClusters; $i++) {
+                            $boundaries[] = ($clusterMeta[$i - 1]['maxRight'] + $clusterMeta[$i]['minLeft']) / 2;
+                        }
+                    }
+                    $boundaries[] = $figLeft + $figWidth;
 
                     $subs = [];
                     for ($i = 0; $i < \count($boundaries) - 1; $i++) {
