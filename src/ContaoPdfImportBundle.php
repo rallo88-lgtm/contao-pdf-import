@@ -6,7 +6,7 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
 
 class ContaoPdfImportBundle extends Bundle
 {
-    public const VERSION = '0.1.0';
+    public const VERSION = '0.2.0';
 
     public function getPath(): string
     {
