@@ -221,10 +221,14 @@ final class NewsArticleBuilder
 
                 if (\is_array($subColumns) && \count($subColumns) >= 2) {
                     // Multi-Column-Infografik -> N Sub-Crops + tl_content
-                    // type=gallery. Ein gemeinsames caption-Feld gilt fuer
-                    // die Gesamtgrafik, CSS-Klasse rct-infografik triggert
-                    // im rct-bundle das responsive Grid (Desktop nahtlos
+                    // type=gallery. CSS-Klasse rct-infografik triggert im
+                    // rct-bundle das responsive Grid (Desktop nahtlos
                     // nebeneinander, Mobile <768px gestackt).
+                    //
+                    // Caption: Contao rendert tl_content.caption beim
+                    // gallery-CE NICHT — daher separates text-CE nach der
+                    // Gallery mit cssClass rct-infografik-caption (rct-bundle
+                    // styled das wie figcaption).
                     $imageSeqByType[$typeShort] = ($imageSeqByType[$typeShort] ?? 0) + 1;
                     $seq                        = $imageSeqByType[$typeShort];
                     $uuids                      = [];
@@ -245,11 +249,24 @@ final class NewsArticleBuilder
                         'multiSRC' => serialize($uuids),
                         'sortBy'   => 'custom',
                         'perRow'   => \count($uuids),
-                        'caption'  => $caption,
                         // Contao speichert CSS-Klasse als serialisiertes [id, class]-Tupel
                         'cssID'    => serialize(['', 'rct-infografik']),
                     ]);
                     $blocksInserted++;
+
+                    if ($caption !== '') {
+                        $sorting += 64;
+                        $this->db->insert('tl_content', [
+                            'pid'     => $newsId,
+                            'ptable'  => 'tl_news',
+                            'sorting' => $sorting,
+                            'tstamp'  => time(),
+                            'type'    => 'text',
+                            'text'    => '<p>' . htmlspecialchars($caption, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '</p>',
+                            'cssID'   => serialize(['', 'rct-infografik-caption']),
+                        ]);
+                        $blocksInserted++;
+                    }
                     continue;
                 }
 
