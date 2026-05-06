@@ -10,6 +10,7 @@ use Rallo\ContaoPdfImport\Service\Job\JobFilesystem;
 use Rallo\ContaoPdfImport\Service\Job\JobRepository;
 use Rallo\ContaoPdfImport\Service\Job\JobStatus;
 use Rallo\ContaoPdfImport\Service\Ocr\OcrProviderInterface;
+use Rallo\ContaoPdfImport\Service\RuleOverridesProvider;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -41,6 +42,7 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
         private readonly JobRepository $jobs,
         private readonly JobFilesystem $jobFs,
         private readonly EventLogger $eventLogger,
+        private readonly RuleOverridesProvider $ruleOverrides,
         private readonly UrlGeneratorInterface $urlGenerator,
         #[Autowire(param: 'kernel.project_dir')] private readonly string $projectDir,
         #[Autowire(env: 'AWS_REGION')]           private readonly string $awsRegion,
@@ -183,7 +185,9 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                 // spalten-weise neu sortieren. Vollbreite Blocks (Width >0.5
                 // oder ausserhalb der Cluster) sind Section-Anker, die
                 // bleiben in ihrer Top-Position und unterbrechen die Span.
-                $layoutBlocks = $this->reorderForReadingOrder($layoutBlocks);
+                if ($this->ruleOverrides->isReadingOrderEnabled()) {
+                    $layoutBlocks = $this->reorderForReadingOrder($layoutBlocks);
+                }
 
                 // Caption-Heuristik: pro LAYOUT_FIGURE finde den ersten
                 // LAYOUT_TEXT direkt darunter (vertikal <5% Diff), klein
@@ -192,7 +196,7 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                 // ein Text wird hoechstens einer Figure als Caption zugewiesen.
                 $captionMembership = [];     // text-block-id => figure-block-id
                 $captionByFigureId = [];     // figure-block-id => string
-                foreach ($layoutBlocks as $f) {
+                foreach ($this->ruleOverrides->isCaptionHeuristicEnabled() ? $layoutBlocks : [] as $f) {
                     if (($f['BlockType'] ?? '') !== 'LAYOUT_FIGURE') {
                         continue;
                     }
@@ -252,13 +256,11 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                 // type=gallery eingebaut, damit es auf Mobile <768px gestackt
                 // wird statt unleserlich klein.
                 //
-                // Schalter: ENV PDFIMPORT_DISABLE_MULTI_COL_SPLIT=1 deaktiviert
-                // die Detection komplett — fuer Edge-Cases wo die Heuristik
-                // falsch zuschneidet, kann der Re-Import dann wie vorher als
-                // EIN Bild laufen. .env.local + cache:clear nach Aenderung.
-                $multiColSplitDisabled = ((string) getenv('PDFIMPORT_DISABLE_MULTI_COL_SPLIT')) === '1';
-                $figureSubColumns      = []; // figure-block-id => array<int, array{Left,Top,Width,Height}>
-                foreach ($multiColSplitDisabled ? [] : $layoutBlocks as $f) {
+                // Schalter: BE-Toggle in tl_pdf_import_config (UI: pdf_import_config-Page),
+                // mit ENV-Force-Override PDFIMPORT_DISABLE_MULTI_COL_SPLIT=1 fuer
+                // CLI-/Server-Notnaegel ohne BE-Login.
+                $figureSubColumns = []; // figure-block-id => array<int, array{Left,Top,Width,Height}>
+                foreach ($this->ruleOverrides->isMultiColSplitEnabled() ? $layoutBlocks : [] as $f) {
                     if (($f['BlockType'] ?? '') !== 'LAYOUT_FIGURE') {
                         continue;
                     }
@@ -369,7 +371,7 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
 
                 $listMembership = [];          // text-block-id => list-block-id
                 $listItemsByListId = [];       // list-block-id => string[]
-                foreach ($layoutBlocks as $b) {
+                foreach ($this->ruleOverrides->isListDedupEnabled() ? $layoutBlocks : [] as $b) {
                     if (($b['BlockType'] ?? '') !== 'LAYOUT_LIST') {
                         continue;
                     }

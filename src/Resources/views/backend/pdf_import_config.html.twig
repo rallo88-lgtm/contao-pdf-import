@@ -9,10 +9,84 @@
 
     <h2 class="sub_headline">Konfiguration</h2>
 
+    {% if saved %}
+        <div class="tl_confirm" style="margin-bottom:1em">Regel-Toggles gespeichert.</div>
+    {% endif %}
+
     <div class="tl_listing_container">
         <div class="tl_formbody">
 
             <fieldset class="tl_box">
+                <legend>Verarbeitungs-Regeln aktiv schalten</legend>
+                <p class="tl_help" style="margin-bottom:8px">
+                    Default ist alles aktiv ("smart"-Modus). Eine Regel deaktivieren, wenn sie auf einer
+                    konkreten Ausgabe stört — der naechste Phase-C-Run faellt fuer diese Heuristik dann
+                    auf rohen Textract-Output zurueck. Globale Einstellung; pro-Job-Override kommt spaeter.
+                </p>
+                <form method="POST" action="{{ path('pdf_import_config_save') }}" class="tl_form" data-turbo="false">
+                    <input type="hidden" name="REQUEST_TOKEN" value="{{ request_token }}">
+                    <div class="tl_formbody_edit" style="display:flex; flex-direction:column; gap:8px">
+                        <label style="display:flex; align-items:flex-start; gap:8px">
+                            <input type="checkbox" name="caption_heuristic" value="1" {% if rules.caption_heuristic %}checked{% endif %}>
+                            <span>
+                                <strong>Caption-Heuristik</strong>
+                                <span style="color:var(--text-muted, #888); font-size:0.9em">
+                                    — Text direkt unter Bild als <code>figcaption</code> erkennen.
+                                    Aus = Caption-Text laeuft als normaler Absatz mit.
+                                </span>
+                            </span>
+                        </label>
+                        <label style="display:flex; align-items:flex-start; gap:8px">
+                            <input type="checkbox" name="list_dedup" value="1" {% if rules.list_dedup %}checked{% endif %}>
+                            <span>
+                                <strong>Liste-Items-Dedup</strong>
+                                <span style="color:var(--text-muted, #888); font-size:0.9em">
+                                    — Nested LIST-Items zu <code>tl_content type=list</code> zusammenfassen,
+                                    parallele Top-Level-Texts skippen. Aus = jeder Item-Text als eigener Absatz
+                                    (Items koennen doppelt erscheinen).
+                                </span>
+                            </span>
+                        </label>
+                        <label style="display:flex; align-items:flex-start; gap:8px">
+                            <input type="checkbox" name="reading_order_reorder" value="1" {% if rules.reading_order_reorder %}checked{% endif %}>
+                            <span>
+                                <strong>Reading-Order-Reorder (Multi-Column)</strong>
+                                <span style="color:var(--text-muted, #888); font-size:0.9em">
+                                    — Bei 3-Spalten-Pages spalten-weise linearisieren. Aus = Original-Textract-
+                                    Reihenfolge (oft typgruppiert: erst Bilder, dann Texte).
+                                </span>
+                            </span>
+                        </label>
+                        <label style="display:flex; align-items:flex-start; gap:8px">
+                            {% if envMultiColForced %}
+                                {# ENV erzwingt aus — DB-Wert per hidden field erhalten, sonst wuerde Save 0 schreiben #}
+                                <input type="hidden" name="multi_col_split" value="{{ rules.multi_col_split ? '1' : '' }}">
+                                <input type="checkbox" {% if rules.multi_col_split %}checked{% endif %} disabled>
+                            {% else %}
+                                <input type="checkbox" name="multi_col_split" value="1" {% if rules.multi_col_split %}checked{% endif %}>
+                            {% endif %}
+                            <span>
+                                <strong>Multi-Column-Infografik-Split</strong>
+                                <span style="color:var(--text-muted, #888); font-size:0.9em">
+                                    — Vollbreite Infografiken mit N Spalten in N Sub-Crops splitten
+                                    (mobile-stackbar). Aus = ein einziges Bild bleibt vollbreit.
+                                </span>
+                                {% if envMultiColForced %}
+                                    <br><span style="color:#c93">⚠ Per ENV <code>PDFIMPORT_DISABLE_MULTI_COL_SPLIT=1</code> erzwungen aus —
+                                    UI-Wert ignoriert, ENV-Variable aufheben um wieder schalten zu koennen.</span>
+                                {% endif %}
+                            </span>
+                        </label>
+                    </div>
+                    <div class="tl_formbody_submit">
+                        <div class="tl_submit_container">
+                            <button type="submit" class="tl_submit">Speichern</button>
+                        </div>
+                    </div>
+                </form>
+            </fieldset>
+
+            <fieldset class="tl_box" style="margin-top:1.5em">
                 <legend>Block-Type → Contao-CE Mapping</legend>
                 <p class="tl_help" style="margin-bottom:8px">
                     Was Textract pro Page erkennt und in welches <code>tl_content</code>-Element es im
