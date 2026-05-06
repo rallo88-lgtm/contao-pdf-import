@@ -272,17 +272,16 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                         continue; // nur vollbreite Figures sind Multi-Column-Kandidaten
                     }
                     // Sammle CHILD-Geometrien (LINE/WORD-Granularitaet) als
-                    // {top, center}-Paare. Center = left + width/2 reflektiert
-                    // die VISUELLE Mitte der Headline — wichtig damit Crop-
-                    // Boundaries auf die echten Spalten-Trenner fallen, nicht
-                    // auf links-versetzte Mittelpunkte zwischen Left-Edges.
+                    // {top, left, right, center}-Punkte. Center fuer Cluster-
+                    // Zuordnung und Gap-Check, left/right fuer Edge-basierte
+                    // Crop-Boundaries (robust bei ungleich breiten Spalten).
                     $childPoints = [];
                     foreach ($f['Relationships'] ?? [] as $rel) {
                         if (($rel['Type'] ?? '') !== 'CHILD') {
                             continue;
                         }
                         foreach ($rel['Ids'] ?? [] as $cid) {
-                            $cb = $blockMap[$cid] ?? null;
+                            $cb  = $blockMap[$cid] ?? null;
                             $cbb = $cb['Geometry']['BoundingBox'] ?? null;
                             if ($cbb === null) {
                                 continue;
@@ -291,6 +290,8 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                             $cWidth = (float) ($cbb['Width'] ?? 0);
                             $childPoints[] = [
                                 'top'    => (float) ($cbb['Top'] ?? 0),
+                                'left'   => $cLeft,
+                                'right'  => $cLeft + $cWidth,
                                 'center' => $cLeft + $cWidth / 2,
                             ];
                         }
@@ -303,44 +304,53 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                     // (top < firstTop + 2% page-height) als Spalten-Indikator.
                     // Sub-Donut-Charts und Detail-Texte stehen typografisch
                     // tiefer und wuerden falsche Sub-Spalten erzeugen.
-                    $firstTop        = min(array_column($childPoints, 'top'));
-                    $headlineCutoff  = $firstTop + 0.02;
-                    $headlineCenters = [];
+                    $firstTop       = min(array_column($childPoints, 'top'));
+                    $headlineCutoff = $firstTop + 0.02;
+                    $headlinePoints = [];
                     foreach ($childPoints as $p) {
                         if ($p['top'] < $headlineCutoff) {
-                            $headlineCenters[] = $p['center'];
+                            $headlinePoints[] = $p;
                         }
                     }
-                    if (\count($headlineCenters) < 2) {
+                    if (\count($headlinePoints) < 2) {
                         continue;
                     }
-                    sort($headlineCenters);
-                    // Cluster mit 5%-Toleranz (Adjacent-Diff auf Centers)
-                    $clusters    = [[$headlineCenters[0]]];
+                    usort($headlinePoints, static fn(array $a, array $b) => $a['center'] <=> $b['center']);
+                    // Cluster mit 5%-Toleranz auf adjacent center-distances.
+                    $clusters    = [[$headlinePoints[0]]];
                     $lastCluster = 0;
-                    for ($i = 1; $i < \count($headlineCenters); $i++) {
-                        if ($headlineCenters[$i] - end($clusters[$lastCluster]) < 0.05) {
-                            $clusters[$lastCluster][] = $headlineCenters[$i];
+                    for ($i = 1; $i < \count($headlinePoints); $i++) {
+                        $tail = end($clusters[$lastCluster]);
+                        if ($headlinePoints[$i]['center'] - $tail['center'] < 0.05) {
+                            $clusters[$lastCluster][] = $headlinePoints[$i];
                         } else {
-                            $clusters[] = [$headlineCenters[$i]];
+                            $clusters[] = [$headlinePoints[$i]];
                             $lastCluster++;
                         }
                     }
-                    // Mit Headline-Filter reichen >=1 Member pro Cluster.
-                    $validClusters = $clusters;
-                    if (\count($validClusters) < 2) {
+                    if (\count($clusters) < 2) {
                         continue;
                     }
-                    // Cluster-Center = avg der Headline-Centers im Cluster
-                    $clusterCenters = array_map(
-                        static fn(array $c) => array_sum($c) / \count($c),
-                        $validClusters,
-                    );
-                    sort($clusterCenters);
-                    // Paarweise >=10% Gap zwischen Cluster-Centers
+                    // Pro Cluster: avg-center (fuer Gap-Check), max-right und
+                    // min-left (fuer Edge-basierte Boundaries). Bei gleich
+                    // breiten Spalten praktisch identisch zu Center-Mids,
+                    // bei ungleich breiten deutlich praeziser weil der
+                    // Boundary in den Whitespace zwischen den Headlines faellt.
+                    $clusterMeta = array_map(static function (array $c): array {
+                        $centers = array_column($c, 'center');
+                        $rights  = array_column($c, 'right');
+                        $lefts   = array_column($c, 'left');
+                        return [
+                            'center'   => array_sum($centers) / \count($centers),
+                            'maxRight' => max($rights),
+                            'minLeft'  => min($lefts),
+                        ];
+                    }, $clusters);
+                    usort($clusterMeta, static fn(array $a, array $b) => $a['center'] <=> $b['center']);
+                    // Paarweise >=10% Gap zwischen Cluster-Centers.
                     $valid = true;
-                    for ($i = 1; $i < \count($clusterCenters); $i++) {
-                        if ($clusterCenters[$i] - $clusterCenters[$i - 1] < 0.10) {
+                    for ($i = 1; $i < \count($clusterMeta); $i++) {
+                        if ($clusterMeta[$i]['center'] - $clusterMeta[$i - 1]['center'] < 0.10) {
                             $valid = false;
                             break;
                         }
@@ -348,12 +358,13 @@ class PdfImportPhaseCStreamController extends AbstractBackendController
                     if (!$valid) {
                         continue;
                     }
-                    // Crop-Boundaries: Figure-Edges + Mittelpunkte zwischen
-                    // Cluster-CENTERS (nicht Left-Edges) — visuell korrekte
-                    // Spalten-Trenner.
+                    // Crop-Boundaries: Figure-Edges + Mittelpunkte im Whitespace
+                    // zwischen rechter Kante von Cluster i und linker Kante von
+                    // Cluster i+1 — trifft den echten Spalten-Trenner auch wenn
+                    // Headlines links-buendig sitzen statt mittig in der Spalte.
                     $boundaries = [(float) $fbb['Left']];
-                    for ($i = 1; $i < \count($clusterCenters); $i++) {
-                        $boundaries[] = ($clusterCenters[$i - 1] + $clusterCenters[$i]) / 2;
+                    for ($i = 1; $i < \count($clusterMeta); $i++) {
+                        $boundaries[] = ($clusterMeta[$i - 1]['maxRight'] + $clusterMeta[$i]['minLeft']) / 2;
                     }
                     $boundaries[] = (float) $fbb['Left'] + (float) $fbb['Width'];
 
