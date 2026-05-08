@@ -1,0 +1,138 @@
+{% extends '@Contao_ContaoCoreBundle/be_main.html.twig' %}
+
+{% block title %}Phase F – Publish / Ausgabe veröffentlichen{% endblock %}
+
+{% block main_content %}
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/dos-box.css">
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/jobs.css">
+    <link rel="stylesheet" href="/bundles/contaopdfimport/css/publish.css">
+
+    <h2 class="sub_headline">Phase F — Publish &amp; Übersicht</h2>
+
+    {% if toggled %}
+        <div class="tl_message">
+            <p class="tl_confirm">Sichtbarkeit umgeschaltet.</p>
+        </div>
+    {% endif %}
+    {% if promoted %}
+        <div class="tl_message">
+            <p class="tl_confirm">Ausgabe wurde veröffentlicht.</p>
+        </div>
+    {% endif %}
+
+    {% if not archivesReady %}
+        <div class="tl_message">
+            <p class="tl_error">
+                Pflicht-Archive fehlen. Lege folgende News-Archive an, damit Promote funktioniert:
+            </p>
+            <ul style="margin-top:8px">
+                <li><strong>MBJ-Aktuell</strong> {% if aktuellId %}<code>id={{ aktuellId }}</code> ✓{% else %}<span style="color:#c00">fehlt</span>{% endif %}</li>
+                <li><strong>MBJ-Preview</strong> {% if previewId %}<code>id={{ previewId }}</code> ✓{% else %}<span style="color:#c00">fehlt</span>{% endif %}</li>
+                <li><strong>MBJ-Archiv</strong>  {% if archivId  %}<code>id={{ archivId }}</code> ✓{% else %}<span style="color:#c00">fehlt</span>{% endif %}</li>
+            </ul>
+        </div>
+    {% else %}
+        <div class="tl_message">
+            <p class="tl_info">
+                <strong>Promote-Workflow:</strong>
+                Preview-Ausgabe wird live geschaltet, aktuell aktive Ausgabe wandert ins Archiv.
+                Pre-Flight-Checks laufen automatisch — bei Fehlern bricht der Stream ab,
+                kein DB-Write.
+            </p>
+            <p class="tl_info">
+                Archive: MBJ-Aktuell <code>id={{ aktuellId }}</code> · MBJ-Preview <code>id={{ previewId }}</code> · MBJ-Archiv <code>id={{ archivId }}</code>
+            </p>
+        </div>
+
+        <form method="POST" class="tl_form" id="publish-form" data-turbo="false" data-stream-url="{{ path('pdf_import_publish_stream') }}">
+            <input type="hidden" name="REQUEST_TOKEN" value="{{ request_token }}">
+            <div class="tl_formbody_submit">
+                <div class="tl_submit_container">
+                    <button type="submit" class="tl_submit" id="publish-submit">▶ Ausgabe veröffentlichen</button>
+                    <a id="publish-result-link" href="#" class="tl_submit" style="display:none; margin-left:10px">→ Übersicht aktualisieren</a>
+                </div>
+            </div>
+        </form>
+
+        <div class="dos-box-host" style="margin-top:24px">
+            {% from "@ContaoPdfImport/components/_dos_box.html.twig" import dos_box %}
+            {% set header %}<pre class="dos-header">╔══════════════════════════════════════════════════════════════════╗
+║  <span class="title">RCT TOOLBOX · PDF-IMPORT · PHASE F</span>     <span class="subtitle">v0.4 · PROMOTE</span>        ║
+╚══════════════════════════════════════════════════════════════════╝</pre>{% endset %}
+            {{ dos_box(header) }}
+        </div>
+    {% endif %}
+
+    <h3 class="sub_headline" style="margin-top:32px">Ausgaben-Übersicht</h3>
+
+    {% if issues is empty %}
+        <p class="tl_empty">Noch keine Ausgaben mit <code>issue_number</code> in <code>tl_news</code>.</p>
+    {% else %}
+        <table class="tl_listing rct-publish-table">
+            <thead>
+                <tr>
+                    <th>Ausgabe</th>
+                    <th>Status</th>
+                    <th>Archive</th>
+                    <th style="text-align:right">Seiten</th>
+                    <th style="text-align:right">Sichtbar</th>
+                    <th style="text-align:center">Toggle</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for issue in issues %}
+                    {% set allPublished = issue.published_count == issue.page_count %}
+                    {% set noneVisible  = issue.published_count == 0 %}
+                    <tr class="rct-publish-row status-{{ issue.status }}">
+                        <td><strong>MBJ-{{ issue.issue_number }}</strong></td>
+                        <td>
+                            {% if issue.status == 'aktiv' %}
+                                <span class="rct-status rct-status-aktiv">Aktiv</span>
+                            {% elseif issue.status == 'preview' %}
+                                <span class="rct-status rct-status-preview">Preview</span>
+                            {% elseif issue.status == 'archiv' %}
+                                <span class="rct-status rct-status-archiv">Archiv</span>
+                            {% else %}
+                                <span class="rct-status">{{ issue.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td><code>{{ issue.archive_title }}</code></td>
+                        <td style="text-align:right">{{ issue.page_count }}</td>
+                        <td style="text-align:right">
+                            {% if allPublished %}
+                                <span style="color:#2a8">{{ issue.published_count }}/{{ issue.page_count }}</span>
+                            {% elseif noneVisible %}
+                                <span style="color:#999">{{ issue.published_count }}/{{ issue.page_count }}</span>
+                            {% else %}
+                                <span style="color:#e80">{{ issue.published_count }}/{{ issue.page_count }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align:center">
+                            <form method="POST" action="{{ path('pdf_import_publish_toggle') }}" style="display:inline" data-turbo="false">
+                                <input type="hidden" name="REQUEST_TOKEN" value="{{ request_token }}">
+                                <input type="hidden" name="archive_id" value="{{ issue.pid }}">
+                                <input type="hidden" name="issue_number" value="{{ issue.issue_number }}">
+                                <button type="submit"
+                                        class="rct-toggle-btn"
+                                        title="{% if allPublished %}Alle {{ issue.page_count }} Seiten unveröffentlichen{% else %}Alle {{ issue.page_count }} Seiten veröffentlichen{% endif %}">
+                                    {% if allPublished %}
+                                        <img src="/system/themes/flexible/icons/visible.svg" alt="sichtbar" width="16" height="16">
+                                    {% elseif noneVisible %}
+                                        <img src="/system/themes/flexible/icons/invisible.svg" alt="unsichtbar" width="16" height="16">
+                                    {% else %}
+                                        <img src="/system/themes/flexible/icons/visible.svg" alt="teilweise" width="16" height="16" style="opacity:0.5">
+                                    {% endif %}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+
+    {% if archivesReady %}
+        <script src="/bundles/contaopdfimport/js/dos-box.js"></script>
+        <script src="/bundles/contaopdfimport/js/phase-stream.js"></script>
+    {% endif %}
+{% endblock %}

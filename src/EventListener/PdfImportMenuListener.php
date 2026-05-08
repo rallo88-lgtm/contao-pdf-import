@@ -69,6 +69,14 @@ class PdfImportMenuListener
         ->setLinkAttribute('class', 'navigation pdf_import')
         ->setCurrent($current === 'pdf_import');
 
+        $category->addChild('pdf_import_publish', [
+            'route'  => 'pdf_import_publish',
+            'label'  => 'Publish & Übersicht',
+            'extras' => ['icon' => self::ICON_BASE . '/publish.svg', 'isSafe' => true],
+        ])
+        ->setLinkAttribute('class', 'navigation pdf_import_publish')
+        ->setCurrent($current === 'pdf_import_publish');
+
         $category->addChild('pdf_import_inspector', [
             'route'  => 'pdf_import_inspector',
             'label'  => 'Textract-Inspektor',

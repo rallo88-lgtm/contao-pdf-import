@@ -1,0 +1,74 @@
+/* Phase F — Publish-Page Styling */
+
+.rct-publish-table {
+    width: 100%;
+    margin-top: 12px;
+    border-collapse: collapse;
+}
+
+.rct-publish-table th,
+.rct-publish-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #e5e5e5;
+    vertical-align: middle;
+}
+
+.rct-publish-table thead th {
+    background: #f4f4f4;
+    font-weight: 600;
+    text-align: left;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.rct-publish-row:hover {
+    background: #fafafa;
+}
+
+.rct-publish-row.status-preview {
+    background: rgba(255, 232, 150, 0.25);
+}
+
+.rct-publish-row.status-aktiv {
+    background: rgba(150, 220, 180, 0.18);
+}
+
+.rct-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.rct-status-preview {
+    background: #fff3c4;
+    color: #7a5d00;
+}
+
+.rct-status-aktiv {
+    background: #c4e8d2;
+    color: #1f5a35;
+}
+
+.rct-status-archiv {
+    background: #e5e5e5;
+    color: #555;
+}
+
+.rct-toggle-btn {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 4px 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.rct-toggle-btn:hover {
+    border-color: #888;
+    background: #fff;
+}
