@@ -7,6 +7,7 @@ use Contao\ManagerPlugin\Bundle\BundlePluginInterface;
 use Contao\ManagerPlugin\Bundle\Config\BundleConfig;
 use Contao\ManagerPlugin\Bundle\Parser\ParserInterface;
 use Contao\ManagerPlugin\Routing\RoutingPluginInterface;
+use Contao\NewsBundle\ContaoNewsBundle;
 use Rallo\ContaoPdfImport\ContaoPdfImportBundle;
 use Symfony\Component\Config\Loader\LoaderResolverInterface;
 use Symfony\Component\HttpKernel\KernelInterface;
@@ -16,9 +17,14 @@ class Plugin implements BundlePluginInterface, RoutingPluginInterface
 {
     public function getBundles(ParserInterface $parser): array
     {
+        // setLoadAfter([NewsBundle]) ist Pflicht: news-bundle/contao/dca/tl_news.php
+        // macht $GLOBALS['TL_DCA']['tl_news'] = array(...) als hartes Assignment.
+        // Ohne Load-Order-Constraint wuerden unsere Felder issue_number / pageNumber
+        // ueberschrieben — Schema-Diff wuerde sie als Orphans markieren und droppen
+        // wollen.
         return [
             BundleConfig::create(ContaoPdfImportBundle::class)
-                ->setLoadAfter([ContaoCoreBundle::class]),
+                ->setLoadAfter([ContaoCoreBundle::class, ContaoNewsBundle::class]),
         ];
     }
 

@@ -29,10 +29,27 @@ class AddNewsIssueColumnsMigration extends AbstractMigration
             return false;
         }
 
-        $cols = $this->lowercaseColumnNames();
+        $columns = $sm->listTableColumns('tl_news');
+        $byName  = [];
+        foreach ($columns as $name => $col) {
+            $byName[strtolower($name)] = $col;
+        }
 
-        return !\in_array('issue_number', $cols, true)
-            || !\in_array('pagenumber', $cols, true);
+        // Spalten fehlen ganz?
+        if (!isset($byName['issue_number']) || !isset($byName['pagenumber'])) {
+            return true;
+        }
+
+        // Spalten existieren als NULL-able (v0.3.0-Initial-Pattern) — auf
+        // NOT NULL DEFAULT 0 angleichen, damit Schema-Sync stabil bleibt.
+        if (!$byName['issue_number']->getNotnull() || !$byName['pagenumber']->getNotnull()) {
+            return true;
+        }
+
+        // Composite-Index fehlt?
+        $indexes = $sm->listTableIndexes('tl_news');
+
+        return !isset($indexes['pid_issue_number_pagenumber']);
     }
 
     public function run(): MigrationResult
@@ -41,19 +58,36 @@ class AddNewsIssueColumnsMigration extends AbstractMigration
 
         if (!\in_array('issue_number', $cols, true)) {
             $this->db->executeStatement(
-                'ALTER TABLE tl_news ADD COLUMN issue_number INT NULL DEFAULT NULL'
+                'ALTER TABLE tl_news ADD COLUMN issue_number INT(10) UNSIGNED NOT NULL DEFAULT 0'
+            );
+        } else {
+            // Falls die Spalte bereits NULL-able existiert (v0.3.0 Initial-
+            // Deploy mit 'INT NULL DEFAULT NULL'), auf NOT NULL DEFAULT 0
+            // angleichen — sonst meldet Contao Schema-Diff dauerhaft pending.
+            $this->db->executeStatement(
+                "UPDATE tl_news SET issue_number = 0 WHERE issue_number IS NULL"
+            );
+            $this->db->executeStatement(
+                'ALTER TABLE tl_news MODIFY COLUMN issue_number INT(10) UNSIGNED NOT NULL DEFAULT 0'
             );
         }
         if (!\in_array('pagenumber', $cols, true)) {
             $this->db->executeStatement(
-                'ALTER TABLE tl_news ADD COLUMN pageNumber INT NULL DEFAULT NULL'
+                'ALTER TABLE tl_news ADD COLUMN pageNumber INT(10) UNSIGNED NOT NULL DEFAULT 0'
+            );
+        } else {
+            $this->db->executeStatement(
+                "UPDATE tl_news SET pageNumber = 0 WHERE pageNumber IS NULL"
+            );
+            $this->db->executeStatement(
+                'ALTER TABLE tl_news MODIFY COLUMN pageNumber INT(10) UNSIGNED NOT NULL DEFAULT 0'
             );
         }
 
         $indexes = $this->db->createSchemaManager()->listTableIndexes('tl_news');
-        if (!isset($indexes['idx_news_issue_page'])) {
+        if (!isset($indexes['pid_issue_number_pagenumber'])) {
             $this->db->executeStatement(
-                'CREATE INDEX idx_news_issue_page ON tl_news (pid, issue_number, pageNumber)'
+                'CREATE INDEX pid_issue_number_pagenumber ON tl_news (pid, issue_number, pageNumber)'
             );
         }
 

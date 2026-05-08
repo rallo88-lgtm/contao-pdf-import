@@ -20,7 +20,7 @@ $GLOBALS['TL_DCA']['tl_news']['fields']['issue_number'] = [
     'exclude'   => true,
     'inputType' => 'text',
     'eval'      => ['rgxp' => 'natural', 'tl_class' => 'w50', 'maxlength' => 6],
-    'sql'       => 'INT NULL DEFAULT NULL',
+    'sql'       => "int(10) unsigned NOT NULL default 0",
 ];
 
 $GLOBALS['TL_DCA']['tl_news']['fields']['pageNumber'] = [
@@ -28,7 +28,7 @@ $GLOBALS['TL_DCA']['tl_news']['fields']['pageNumber'] = [
     'exclude'   => true,
     'inputType' => 'text',
     'eval'      => ['rgxp' => 'natural', 'tl_class' => 'w50', 'maxlength' => 4],
-    'sql'       => 'INT NULL DEFAULT NULL',
+    'sql'       => "int(10) unsigned NOT NULL default 0",
 ];
 
 // Composite-Index fuer NewsConflictChecker-Lookup.
