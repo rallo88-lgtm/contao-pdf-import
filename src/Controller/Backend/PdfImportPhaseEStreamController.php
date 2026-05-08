@@ -92,8 +92,9 @@ class PdfImportPhaseEStreamController extends AbstractBackendController
                 $job->targetArchivePid ?? 0,
             ));
 
-            $totals = ['created' => 0, 'replaced' => 0, 'skipped' => 0, 'failed' => 0, 'blocks' => 0, 'images' => 0];
-            $errors = [];
+            $totals      = ['created' => 0, 'replaced' => 0, 'skipped' => 0, 'failed' => 0, 'blocks' => 0, 'images' => 0];
+            $errors      = [];
+            $lastRubrik  = null; // Forward-Fill-State ueber Pages der Reihe nach
 
             foreach ($selectedPages as $pageNumber) {
                 $pageNumber = (int) $pageNumber;
@@ -109,20 +110,26 @@ class PdfImportPhaseEStreamController extends AbstractBackendController
 
                 try {
                     $this->db->beginTransaction();
-                    $r = $this->builder->buildPage($job, $pageNumber, $decision);
+                    $r = $this->builder->buildPage($job, $pageNumber, $decision, $lastRubrik);
                     $this->db->commit();
+
+                    $newRubrik  = $r['rubrik'] ?? null;
+                    $rubrikInfo = $newRubrik === null
+                        ? '⚠️ Rubrik: keine erkannt'
+                        : ($newRubrik === $lastRubrik ? sprintf('Rubrik: %s (forward-filled)', $newRubrik) : sprintf('Rubrik: %s', $newRubrik));
+                    $lastRubrik = $newRubrik ?? $lastRubrik;
 
                     if ($r['action'] === 'replaced') {
                         $totals['replaced']++;
                         $this->emit('ok', sprintf(
-                            'Page %d · REPLACED · tl_news#%d · %d Blocks · %d Bilder',
-                            $pageNumber, $r['news_id'], $r['blocks_inserted'], $r['images'],
+                            'Page %d · REPLACED · tl_news#%d · %d Blocks · %d Bilder · %s',
+                            $pageNumber, $r['news_id'], $r['blocks_inserted'], $r['images'], $rubrikInfo,
                         ));
                     } else {
                         $totals['created']++;
                         $this->emit('ok', sprintf(
-                            'Page %d · CREATED · tl_news#%d · %d Blocks · %d Bilder',
-                            $pageNumber, $r['news_id'], $r['blocks_inserted'], $r['images'],
+                            'Page %d · CREATED · tl_news#%d · %d Blocks · %d Bilder · %s',
+                            $pageNumber, $r['news_id'], $r['blocks_inserted'], $r['images'], $rubrikInfo,
                         ));
                     }
                     $totals['blocks'] += $r['blocks_inserted'];

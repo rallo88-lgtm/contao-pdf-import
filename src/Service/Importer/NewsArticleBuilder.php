@@ -7,27 +7,37 @@ use Rallo\ContaoPdfImport\Service\IssueDateParser;
 use Rallo\ContaoPdfImport\Service\Job\Job;
 use Rallo\ContaoPdfImport\Service\Job\JobFilesystem;
 use Rallo\ContaoPdfImport\Service\NewsConflictChecker;
+use Rallo\ContaoPdfImport\Service\RubrikWhitelist;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Build-Logik fuer eine einzelne tl_news + ihre tl_content-Children
- * pro Page. Per Default:
- * - headline = "MBJ-{nr} Seite {pageNr}", alias = sanitized + tstamp,
- *   date = IssueDateParser(detectedIssueDate) ?? deterministicDate
- *   (Sortier-Fallback), time = date + pageNr*60 (Page-Index als
- *   sichtbare Minute im BE), published = 0 (Bettina prueft via
- *   FE-Reader-Vorschau).
- * - Block-Mapping: mappingCe='headline' -> tl_content type=headline mit
- *   unit=h1 (LAYOUT_TITLE) oder h2 (LAYOUT_SECTION_HEADER); 'text' ->
- *   type=text mit <p>nl2br($text)</p>; 'image' (FIGURE/TABLE) -> crop +
- *   tl_files + type=image mit singleSRC.
- * - decision='replace': existing tl_news.id behalten, tl_content unter
- *   ihm loeschen, tl_news mit neuen Werten updaten (published=0!).
- * - decision='new': neue tl_news anlegen.
- * - decision='skip': nichts tun.
+ * pro Page.
  *
- * Returns Insert-Stats (created, replaced, skipped, blocks_inserted,
- * images_cropped).
+ * tl_news-Felder pro Page:
+ * - subheadline = LAYOUT_TITLE-Text der Rubrik-Box (Whitelist-normalisiert
+ *   gegen die 7 MBJ-Rubriken, Forward-Fill aus voriger Page bei Detection-
+ *   Fail).
+ * - headline    = erste LAYOUT_SECTION_HEADER (= Artikel-Hauptzeile).
+ *   Fallback "MBJ-{nr} Seite {pageNr}" wenn keine vorhanden ist.
+ * - teaser      = restliche LAYOUT_SECTION_HEADERs kommasepariert
+ *   (= Inhaltsangabe der Sektionen, sichtbar in mod_newslist).
+ * - issue_number / pageNumber = Composite-Match-Key fuer NewsConflictChecker.
+ * - alias = sanitized + tstamp.
+ * - date = IssueDateParser(detectedIssueDate) ?? deterministicDate.
+ * - time = date + pageNr*60 (BE-Sortierung sichtbar pro Page).
+ * - published = 0 (Bettina prueft via FE-Reader-Vorschau).
+ *
+ * tl_content-Body:
+ * - LAYOUT_TITLE-Blocks werden NICHT als h1 gerendert (sind in subheadline).
+ * - Erste LAYOUT_SECTION_HEADER wird NICHT als h2 gerendert (ist headline).
+ * - Restliche LAYOUT_SECTION_HEADERs als h2 im Body.
+ * - 'text' -> type=text mit <p>nl2br($text)</p>.
+ * - 'image' (FIGURE/TABLE) -> crop + tl_files + type=image / type=gallery.
+ *
+ * Decisions: replace = update + tl_content cleanen, new = insert,
+ * skip = nichts tun. Returns Insert-Stats inkl. 'rubrik' fuer Forward-
+ * Fill in der naechsten Page.
  */
 final class NewsArticleBuilder
 {
@@ -44,12 +54,17 @@ final class NewsArticleBuilder
     /**
      * Verarbeitet eine einzelne Page.
      *
-     * @return array{action: string, news_id: int, blocks_inserted: int, images: int}
+     * @param ?string $previousRubrik Forward-Fill-Wert aus der vorigen
+     *                                Page; wird genutzt wenn auf der
+     *                                aktuellen Page keine Rubrik in der
+     *                                Whitelist matcht.
+     *
+     * @return array{action: string, news_id: int, blocks_inserted: int, images: int, rubrik: ?string}
      */
-    public function buildPage(Job $job, int $pageNumber, string $decision): array
+    public function buildPage(Job $job, int $pageNumber, string $decision, ?string $previousRubrik = null): array
     {
         if ($decision === 'skip') {
-            return ['action' => 'skipped', 'news_id' => 0, 'blocks_inserted' => 0, 'images' => 0];
+            return ['action' => 'skipped', 'news_id' => 0, 'blocks_inserted' => 0, 'images' => 0, 'rubrik' => $previousRubrik];
         }
         if ($job->targetArchivePid === null) {
             throw new \RuntimeException('Job hat kein target_archive_pid.');
@@ -68,15 +83,48 @@ final class NewsArticleBuilder
         }
 
         $issueNum = $job->detectedIssueNumber;
-        $headline = NewsConflictChecker::deterministicHeadline($issueNum, $pageNumber);
+        $issueInt = (int) $issueNum;
+
+        // Headline-Sammlung VOR Insert/Update: Rubrik (LAYOUT_TITLE) +
+        // Sections (LAYOUT_SECTION_HEADER, in Reading-Order).
+        $titleTexts   = [];
+        $sectionTexts = [];
+        foreach ($blocks as $b) {
+            if (($b['mappingCe'] ?? null) !== 'headline') {
+                continue;
+            }
+            if (!empty($b['listParentId']) || !empty($b['captionParentId'])) {
+                continue;
+            }
+            $type = (string) ($b['type'] ?? '');
+            $text = trim((string) ($b['text'] ?? ''));
+            if ($text === '') {
+                continue;
+            }
+            if ($type === 'LAYOUT_TITLE') {
+                $titleTexts[] = $text;
+            } elseif ($type === 'LAYOUT_SECTION_HEADER') {
+                $sectionTexts[] = $text;
+            }
+        }
+
+        // Multi-Line-Rubrik-Boxen ("WISSENSCHAFT" \n "UND FORSCHUNG")
+        // joinen und gegen Whitelist normalisieren; bei No-Match Forward-
+        // Fill aus voriger Page.
+        $rubrikRaw = trim(implode(' ', $titleTexts));
+        $rubrik    = RubrikWhitelist::normalize($rubrikRaw) ?? $previousRubrik;
+
+        $fallbackHeadline = sprintf('MBJ-%s Seite %d', $issueNum, $pageNumber);
+        $headline         = $sectionTexts[0] ?? $fallbackHeadline;
+        $teaser           = implode(', ', \array_slice($sectionTexts, 1));
+
         // Echtes Datum aus Klammer-Erkennung (z.B. "Maerz 2026" -> Monatsanfang),
         // sonst deterministicDate als Sortier-Fallback.
         $realDate = $this->issueDateParser->parse($job->detectedIssueDate);
-        $date     = $realDate ?? NewsConflictChecker::deterministicDate((int) $issueNum, $pageNumber);
+        $date     = $realDate ?? NewsConflictChecker::deterministicDate($issueInt, $pageNumber);
         // Page-Index als Minuten-Offset, damit BE-Anzeige Page-Reihenfolge zeigt:
         // Page 1 -> 00:01, Page 2 -> 00:02, ... (statt allen "00:00" mit Sub-Minuten-Diff)
         $time     = $date + ($pageNumber * 60);
-        $teaser   = sprintf('MBJ Ausgabe %s, Seite %d', $issueNum, $pageNumber);
 
         // Existing-Check (sollte mit decision konsistent sein)
         $existing = $decision === 'replace'
@@ -95,26 +143,32 @@ final class NewsArticleBuilder
             );
             // tl_news updaten — published=0! Bettina prüft neu
             $this->db->update('tl_news', [
-                'tstamp'    => time(),
-                'headline'  => $headline,
-                'date'      => $date,
-                'time'      => $time,
-                'teaser'    => $teaser,
-                'published' => 0,
+                'tstamp'       => time(),
+                'headline'     => $headline,
+                'subheadline'  => $rubrik ?? '',
+                'date'         => $date,
+                'time'         => $time,
+                'teaser'       => $teaser,
+                'issue_number' => $issueInt,
+                'pageNumber'   => $pageNumber,
+                'published'    => 0,
             ], ['id' => $newsId]);
             $action = 'replaced';
         } else {
             $alias = $this->buildAlias($issueNum, $pageNumber);
             $this->db->insert('tl_news', [
-                'pid'       => $job->targetArchivePid,
-                'tstamp'    => time(),
-                'headline'  => $headline,
-                'alias'     => $alias,
-                'author'    => $job->userId ?: 1,
-                'date'      => $date,
-                'time'      => $time,
-                'teaser'    => $teaser,
-                'published' => 0,
+                'pid'          => $job->targetArchivePid,
+                'tstamp'       => time(),
+                'headline'     => $headline,
+                'subheadline'  => $rubrik ?? '',
+                'alias'        => $alias,
+                'author'       => $job->userId ?: 1,
+                'date'         => $date,
+                'time'         => $time,
+                'teaser'       => $teaser,
+                'issue_number' => $issueInt,
+                'pageNumber'   => $pageNumber,
+                'published'    => 0,
             ]);
             $newsId = (int) $this->db->lastInsertId();
             $action = 'created';
@@ -124,10 +178,11 @@ final class NewsArticleBuilder
         $imageRelDir = sprintf('files/mbj-import/MBJ-%s', $issueNum);
         $folderUuid  = $this->filesIndex->ensureFolderPath($imageRelDir);
 
-        $sorting        = 0;
-        $blocksInserted = 0;
-        $imagesCropped  = 0;
-        $imageSeqByType = [];
+        $sorting              = 0;
+        $blocksInserted       = 0;
+        $imagesCropped        = 0;
+        $imageSeqByType       = [];
+        $mainSectionConsumed  = false;
 
         foreach ($blocks as $b) {
             $ce = $b['mappingCe'] ?? null;
@@ -145,6 +200,20 @@ final class NewsArticleBuilder
             // caption-Feld — hier skippen damit kein eigener <p>.
             if (!empty($b['captionParentId'])) {
                 continue;
+            }
+            // Header-Skip-Regeln: LAYOUT_TITLE landet komplett in
+            // tl_news.subheadline (Rubrik), die ERSTE LAYOUT_SECTION_HEADER
+            // in tl_news.headline (Hauptzeile). Beide nicht doppelt im Body
+            // rendern. Restliche LAYOUT_SECTION_HEADER bleiben als h2 drin.
+            if ($ce === 'headline') {
+                $headerType = (string) ($b['type'] ?? '');
+                if ($headerType === 'LAYOUT_TITLE') {
+                    continue;
+                }
+                if ($headerType === 'LAYOUT_SECTION_HEADER' && !$mainSectionConsumed) {
+                    $mainSectionConsumed = true;
+                    continue;
+                }
             }
             $sorting += 128;
 
@@ -174,7 +243,9 @@ final class NewsArticleBuilder
             }
 
             if ($ce === 'headline') {
-                $unit = ($b['type'] ?? '') === 'LAYOUT_TITLE' ? 'h1' : 'h2';
+                // Hier landen nur noch Zwischenueberschriften (=
+                // LAYOUT_SECTION_HEADER ab dem 2. Vorkommen). Die Hauptzeile
+                // ist in tl_news.headline, die Rubrik in subheadline.
                 $text = trim((string) ($b['text'] ?? ''));
                 if ($text === '') {
                     continue;
@@ -185,7 +256,7 @@ final class NewsArticleBuilder
                     'sorting'  => $sorting,
                     'tstamp'   => time(),
                     'type'     => 'headline',
-                    'headline' => serialize(['unit' => $unit, 'value' => $text]),
+                    'headline' => serialize(['unit' => 'h2', 'value' => $text]),
                 ]);
                 $blocksInserted++;
                 continue;
@@ -296,10 +367,11 @@ final class NewsArticleBuilder
         }
 
         return [
-            'action'         => $action,
-            'news_id'        => $newsId,
+            'action'          => $action,
+            'news_id'         => $newsId,
             'blocks_inserted' => $blocksInserted,
-            'images'         => $imagesCropped,
+            'images'          => $imagesCropped,
+            'rubrik'          => $rubrik,
         ];
     }
 

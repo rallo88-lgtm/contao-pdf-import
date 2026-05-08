@@ -5,20 +5,21 @@ namespace Rallo\ContaoPdfImport\Service;
 use Doctrine\DBAL\Connection;
 
 /**
- * Checked pro Page ob bereits ein tl_news-Eintrag existiert. Match-Key
- * ist tl_news.headline (= deterministisch "MBJ-{nr} Seite {pageNr}") —
- * robust gegen den noch ungeklaerten date-Modifikator, der zwischen PHP
- * und DB die date/time-Werte normalisiert. Solange Bettina die Headlines
- * nicht haendisch umbenennt, ist Headline der zuverlaessigere Schluessel.
+ * Pruefen ob bereits ein tl_news-Eintrag fuer (issue, page) existiert.
+ * Match-Key ist seit der Headline-Reform der Composite-Index
+ * (pid, issue_number, pageNumber) — nicht mehr die deterministische
+ * Headline-String. Begruendung: headline traegt jetzt die echte
+ * redaktionelle Hauptzeile aus Phase-C, ist also nicht mehr
+ * deterministisch ueber Importe hinweg.
  *
  * Wenn die Issue-Number unbekannt ist (Detection failed): kein
- * Conflict-Check moeglich, alle pages als 'neu' behandeln. Phase E warnt
- * dann, dass die deterministische Sortierung nicht greift.
+ * Conflict-Check moeglich, alle pages als 'neu' behandeln. Phase E
+ * warnt dann, dass der Match nicht greift.
  */
 final class NewsConflictChecker
 {
     /** Base-Timestamp = 1.1.2000 lokal (gleich wie Vorlage) */
-    private const BASE_TIME = 946684800; // mktime(0,0,0,1,1,2000)
+    private const BASE_TIME = 946684800;
 
     public function __construct(
         private readonly Connection $db,
@@ -29,21 +30,17 @@ final class NewsConflictChecker
         return self::BASE_TIME + ($issueNumber * 1000) + $pageNumber;
     }
 
-    public static function deterministicHeadline(string $issueNumber, int $pageNumber): string
-    {
-        return sprintf('MBJ-%s Seite %d', $issueNumber, $pageNumber);
-    }
-
     /**
      * @param int[] $pageNumbers
      * @return array<int, array{exists: bool, newsId: int|null, headline: string|null, alias: string|null}>
      */
     public function check(int $archivePid, ?string $issueNumber, array $pageNumbers): array
     {
-        $result = [];
+        $result   = [];
+        $issueInt = (int) $issueNumber;
 
         foreach ($pageNumbers as $pageNumber) {
-            if ($issueNumber === null || $issueNumber === '') {
+            if ($issueNumber === null || $issueNumber === '' || $issueInt <= 0) {
                 $result[$pageNumber] = [
                     'exists'   => false,
                     'newsId'   => null,
@@ -53,12 +50,16 @@ final class NewsConflictChecker
                 continue;
             }
 
-            $expectedHeadline = self::deterministicHeadline($issueNumber, $pageNumber);
-
             try {
                 $row = $this->db->fetchAssociative(
-                    'SELECT id, headline, alias FROM tl_news WHERE pid = :pid AND headline = :headline ORDER BY id DESC LIMIT 1',
-                    ['pid' => $archivePid, 'headline' => $expectedHeadline],
+                    'SELECT id, headline, alias FROM tl_news '
+                    . 'WHERE pid = :pid AND issue_number = :issue AND pageNumber = :page '
+                    . 'ORDER BY id DESC LIMIT 1',
+                    [
+                        'pid'   => $archivePid,
+                        'issue' => $issueInt,
+                        'page'  => $pageNumber,
+                    ],
                 );
             } catch (\Throwable) {
                 $row = false;
@@ -67,7 +68,7 @@ final class NewsConflictChecker
             $result[$pageNumber] = [
                 'exists'   => $row !== false,
                 'newsId'   => $row !== false ? (int) $row['id'] : null,
-                'headline' => $row !== false ? (string) $row['headline'] : $expectedHeadline,
+                'headline' => $row !== false ? (string) $row['headline'] : null,
                 'alias'    => $row !== false ? (string) $row['alias'] : null,
             ];
         }
