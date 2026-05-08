@@ -15,13 +15,14 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * pro Page.
  *
  * tl_news-Felder pro Page:
+ * - headline    = "MBJ-{nr} Seite {pageNr}" (deterministischer Identifier,
+ *   sortier-/scanbar im BE und mod_newslist).
  * - subheadline = LAYOUT_TITLE-Text der Rubrik-Box (Whitelist-normalisiert
  *   gegen die 7 MBJ-Rubriken, Forward-Fill aus voriger Page bei Detection-
  *   Fail).
- * - headline    = erste LAYOUT_SECTION_HEADER (= Artikel-Hauptzeile).
- *   Fallback "MBJ-{nr} Seite {pageNr}" wenn keine vorhanden ist.
- * - teaser      = restliche LAYOUT_SECTION_HEADERs kommasepariert
- *   (= Inhaltsangabe der Sektionen, sichtbar in mod_newslist).
+ * - teaser      = ALLE LAYOUT_SECTION_HEADERs kommasepariert
+ *   (= Inhaltsangabe der Sektionen, sichtbar in mod_newslist; Template
+ *   kuerzt bei Bedarf via |truncate-Filter).
  * - issue_number / pageNumber = Composite-Match-Key fuer NewsConflictChecker.
  * - alias = sanitized + tstamp.
  * - date = IssueDateParser(detectedIssueDate) ?? deterministicDate.
@@ -30,8 +31,9 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  *
  * tl_content-Body:
  * - LAYOUT_TITLE-Blocks werden NICHT als h1 gerendert (sind in subheadline).
- * - Erste LAYOUT_SECTION_HEADER wird NICHT als h2 gerendert (ist headline).
- * - Restliche LAYOUT_SECTION_HEADERs als h2 im Body.
+ * - LAYOUT_SECTION_HEADERs ALLE als h2 im Body (echte Hauptzeile +
+ *   Zwischenueberschriften); im Body bleibt die volle Artikel-Struktur,
+ *   das tl_news-headline-Feld ist nur Identifier.
  * - 'text' -> type=text mit <p>nl2br($text)</p>.
  * - 'image' (FIGURE/TABLE) -> crop + tl_files + type=image / type=gallery.
  *
@@ -114,9 +116,13 @@ final class NewsArticleBuilder
         $rubrikRaw = trim(implode(' ', $titleTexts));
         $rubrik    = RubrikWhitelist::normalize($rubrikRaw) ?? $previousRubrik;
 
-        $fallbackHeadline = sprintf('MBJ-%s Seite %d', $issueNum, $pageNumber);
-        $headline         = $sectionTexts[0] ?? $fallbackHeadline;
-        $teaser           = implode(', ', \array_slice($sectionTexts, 1));
+        // headline ist deterministischer Identifier — kein Inhalt aus
+        // Phase-C, weil dessen Heuristik (erste LAYOUT_SECTION_HEADER)
+        // nicht zuverlaessig die Artikel-Hauptzeile liefert (kann Bild-
+        // Caption oder Zwischenueberschrift sein). Inhalt landet als h2
+        // im Body, kommasepariert auch im teaser.
+        $headline = NewsConflictChecker::deterministicHeadline($issueNum, $pageNumber);
+        $teaser   = implode(', ', $sectionTexts);
 
         // Echtes Datum aus Klammer-Erkennung (z.B. "Maerz 2026" -> Monatsanfang),
         // sonst deterministicDate als Sortier-Fallback.
@@ -178,11 +184,10 @@ final class NewsArticleBuilder
         $imageRelDir = sprintf('files/mbj-import/MBJ-%s', $issueNum);
         $folderUuid  = $this->filesIndex->ensureFolderPath($imageRelDir);
 
-        $sorting              = 0;
-        $blocksInserted       = 0;
-        $imagesCropped        = 0;
-        $imageSeqByType       = [];
-        $mainSectionConsumed  = false;
+        $sorting        = 0;
+        $blocksInserted = 0;
+        $imagesCropped  = 0;
+        $imageSeqByType = [];
 
         foreach ($blocks as $b) {
             $ce = $b['mappingCe'] ?? null;
@@ -201,19 +206,12 @@ final class NewsArticleBuilder
             if (!empty($b['captionParentId'])) {
                 continue;
             }
-            // Header-Skip-Regeln: LAYOUT_TITLE landet komplett in
-            // tl_news.subheadline (Rubrik), die ERSTE LAYOUT_SECTION_HEADER
-            // in tl_news.headline (Hauptzeile). Beide nicht doppelt im Body
-            // rendern. Restliche LAYOUT_SECTION_HEADER bleiben als h2 drin.
-            if ($ce === 'headline') {
-                $headerType = (string) ($b['type'] ?? '');
-                if ($headerType === 'LAYOUT_TITLE') {
-                    continue;
-                }
-                if ($headerType === 'LAYOUT_SECTION_HEADER' && !$mainSectionConsumed) {
-                    $mainSectionConsumed = true;
-                    continue;
-                }
+            // Header-Skip: LAYOUT_TITLE landet komplett in tl_news.subheadline
+            // (Rubrik) — nicht doppelt als h1 im Body. LAYOUT_SECTION_HEADER
+            // bleiben ALLE als h2 im Body (echte Artikel-Hauptzeile +
+            // Zwischenueberschriften); zusaetzlich kommasepariert im teaser.
+            if ($ce === 'headline' && (string) ($b['type'] ?? '') === 'LAYOUT_TITLE') {
+                continue;
             }
             $sorting += 128;
 

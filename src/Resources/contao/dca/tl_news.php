@@ -2,18 +2,17 @@
 
 /**
  * Bundle-Erweiterung von tl_news fuer den PDF-Import-Workflow:
- * - issue_number / pageNumber: Composite-Match-Key (NewsConflictChecker)
+ * - issue_number / pageNumber als Composite-Match-Key fuer NewsConflictChecker
  *   und Sortierung im Archiv-Listing.
- * - Custom Label-Format: "MBJ-{issue} · S.{page} — {headline}" fuer Pages,
- *   die per Importer-Job angelegt wurden. Bei Standard-News (issue_number
- *   leer) bleibt das Contao-Default-Listing aktiv.
  *
  * Felder werden zusaetzlich zur AddNewsIssueColumnsMigration deklariert,
  * damit Contao Schema-Sync sie kennt und nicht als Orphans markiert. Beide
  * Mechanismen sind idempotent.
+ *
+ * BE-Listing-Default (headline + date + time) reicht — headline ist seit
+ * v0.3.1 wieder der Identifier "MBJ-{issue} Seite {page}", also schon
+ * scanbar/sortierbar ohne Custom-Format.
  */
-
-use Rallo\ContaoPdfImport\EventListener\Dca\TlNewsLabelListener;
 
 $GLOBALS['TL_DCA']['tl_news']['fields']['issue_number'] = [
     'label'     => ['Ausgabe-Nr.', 'MBJ-Ausgaben-Nummer (Composite-Match-Key fuer pdf-import).'],
@@ -33,6 +32,3 @@ $GLOBALS['TL_DCA']['tl_news']['fields']['pageNumber'] = [
 
 // Composite-Index fuer NewsConflictChecker-Lookup.
 $GLOBALS['TL_DCA']['tl_news']['config']['sql']['keys']['pid,issue_number,pageNumber'] = 'index';
-
-// Label-Format-Override nur fuer Importer-News (issue_number gesetzt).
-$GLOBALS['TL_DCA']['tl_news']['list']['label']['label_callback'] = [TlNewsLabelListener::class, 'formatLabel'];

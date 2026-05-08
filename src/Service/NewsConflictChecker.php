@@ -30,6 +30,11 @@ final class NewsConflictChecker
         return self::BASE_TIME + ($issueNumber * 1000) + $pageNumber;
     }
 
+    public static function deterministicHeadline(string $issueNumber, int $pageNumber): string
+    {
+        return sprintf('MBJ-%s Seite %d', $issueNumber, $pageNumber);
+    }
+
     /**
      * @param int[] $pageNumbers
      * @return array<int, array{exists: bool, newsId: int|null, headline: string|null, alias: string|null}>
